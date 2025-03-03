@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 
 export async function GET(request, { params }) {
-  const { matchId } = params;
-
   try {
-    // 아시아 서버의 매치 데이터 URL로 수정
+    const { searchParams } = new URL(request.url);
+    const puuid = searchParams.get("puuid");
+    const { matchId } = await params;
+
     const response = await fetch(
       `https://asia.api.riotgames.com/lol/match/v5/matches/${matchId}`,
       {
@@ -20,9 +21,17 @@ export async function GET(request, { params }) {
 
     const matchData = await response.json();
 
+    // 솔로 랭크 게임이 아닌 경우
+    if (matchData.info.queueId !== 420) {
+      return NextResponse.json({
+        isRanked: false,
+        error: "Not a solo ranked game",
+      });
+    }
+
     // PUUID로 해당 플레이어 찾기
     const participant = matchData.info.participants.find(
-      (p) => p.puuid === matchData.metadata.participants[0]
+      (p) => p.puuid === puuid
     );
 
     if (!participant) {
@@ -30,6 +39,7 @@ export async function GET(request, { params }) {
     }
 
     return NextResponse.json({
+      isRanked: true,
       championName: participant.championName,
       win: participant.win,
       kills: participant.kills,

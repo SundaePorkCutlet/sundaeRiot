@@ -1,6 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 
+// Rate limit 상태 관리를 위한 전역 변수
+let isRateLimited = false;
+let rateLimitResetTime = null;
+
 export default function Home() {
   // 🔹 6명의 소환사명 (순서 중요!)
   const summonerNames = [
@@ -75,66 +79,160 @@ export default function Home() {
   };
 
   // 매치 정보를 보여주는 컴포넌트
-  const MatchInfo = ({ matchId }) => {
+  const MatchInfo = ({ matchId, puuid }) => {
     const [matchData, setMatchData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
       const fetchMatchData = async () => {
         try {
-          const res = await fetch(`/api/match/${matchId}`);
+          // Rate limit 체크
+          if (isRateLimited) {
+            const now = new Date();
+            if (rateLimitResetTime && now < rateLimitResetTime) {
+              throw new Error(
+                "API 호출 제한 중입니다. 잠시 후 다시 시도해주세요."
+              );
+            }
+            isRateLimited = false;
+          }
+
+          const res = await fetch(`/api/match/${matchId}?puuid=${puuid}`);
+
+          if (res.status === 429) {
+            // Rate limit 상태 설정
+            isRateLimited = true;
+            // 2분 후로 reset 시간 설정
+            rateLimitResetTime = new Date(Date.now() + 2 * 60 * 1000);
+            throw new Error(
+              "API 호출 횟수가 초과되었습니다. 잠시 후 다시 시도해주세요."
+            );
+          }
+
           if (!res.ok) throw new Error(`HTTP 오류: ${res.status}`);
+
           const data = await res.json();
           setMatchData(data);
         } catch (err) {
           console.error(`매치 데이터 로딩 오류 (${matchId}):`, err);
+          setError(err.message);
         } finally {
           setLoading(false);
         }
       };
 
       fetchMatchData();
-    }, [matchId]);
+    }, [matchId, puuid]);
 
     if (loading) return <div>로딩중...</div>;
+    if (error)
+      return <div style={{ color: "red", fontSize: "0.9em" }}>{error}</div>;
     if (!matchData) return null;
 
     return (
-      <div
-        style={{
-          padding: "10px",
-          margin: "5px 0",
-          backgroundColor: "rgba(255, 255, 255, 0.9)",
-          borderRadius: "4px",
-          fontSize: "0.9em",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+      <div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            marginBottom: "8px",
+          }}
+        >
           <img
-            src={`/champion-icons/${matchData.championName}.png`}
+            src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/${matchData.championName}.png`}
             alt={matchData.championName}
-            style={{ width: "30px", height: "30px", borderRadius: "50%" }}
+            style={{ width: "40px", height: "40px", borderRadius: "50%" }}
           />
           <div>
-            <div>{matchData.championName}</div>
+            <div style={{ fontWeight: "bold" }}>{matchData.championName}</div>
             <div
               style={{
-                fontSize: "0.8em",
                 color: matchData.win ? "#2196F3" : "#F44336",
+                fontSize: "0.9em",
               }}
             >
               {matchData.win ? "승리" : "패배"}
             </div>
           </div>
-          <div style={{ marginLeft: "auto" }}>
-            <div>
-              {matchData.kills}/{matchData.deaths}/{matchData.assists}
-            </div>
-            <div style={{ fontSize: "0.8em" }}>
-              딜량: {matchData.totalDamageDealtToChampions.toLocaleString()}
-            </div>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontSize: "0.9em",
+            color: "#666",
+          }}
+        >
+          <div>
+            {matchData.kills}/{matchData.deaths}/{matchData.assists}
+          </div>
+          <div>
+            딜량: {matchData.totalDamageDealtToChampions.toLocaleString()}
           </div>
         </div>
+      </div>
+    );
+  };
+
+  // 최근 매치 컨테이너 컴포넌트 추가
+  const RecentMatches = ({ matches, puuid }) => {
+    const [rankedMatches, setRankedMatches] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+      const fetchRankedMatches = async () => {
+        let rankedGames = [];
+        let index = 0;
+
+        while (rankedGames.length < 3 && index < matches.length) {
+          try {
+            const res = await fetch(
+              `/api/match/${matches[index]}?puuid=${puuid}`
+            );
+            const data = await res.json();
+            if (data.isRanked) {
+              rankedGames.push(matches[index]);
+            }
+          } catch (err) {
+            console.error(`매치 데이터 로딩 오류 (${matches[index]}):`, err);
+          }
+          index++;
+        }
+
+        setRankedMatches(rankedGames);
+        setLoading(false);
+      };
+
+      fetchRankedMatches();
+    }, [matches, puuid]);
+
+    if (loading) return <div>솔로랭크 매치 검색중...</div>;
+
+    return (
+      <div
+        style={{
+          display: "flex",
+          gap: "15px",
+          marginTop: "15px",
+        }}
+      >
+        {rankedMatches.map((matchId) => (
+          <div
+            key={matchId}
+            style={{
+              flex: "1",
+              padding: "15px",
+              backgroundColor: "rgba(255, 255, 255, 0.9)",
+              borderRadius: "8px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+              minWidth: "200px",
+            }}
+          >
+            <MatchInfo matchId={matchId} puuid={puuid} />
+          </div>
+        ))}
       </div>
     );
   };
@@ -147,34 +245,33 @@ export default function Home() {
       <h1>🔹 6명의 유저 정보</h1>
 
       {users.map((user, index) => (
-        <div key={index}>
-          {/* 유저 기본 정보 카드 */}
-          <div
-            style={{
-              border: "1px solid #ccc",
-              padding: "15px",
-              marginBottom: "10px",
-              background: user.league
-                ? `${getTierGradient(user.league.tier)}`
-                : "#ffffff",
-              opacity: 0.9,
-              borderRadius: "8px",
-              boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
-              color: "#000000",
-              transition: "all 0.3s ease",
-            }}
-          >
-            <h2>👤 {user.summonerName}</h2>
+        <div
+          key={index}
+          style={{
+            border: "1px solid #ccc",
+            padding: "20px",
+            marginBottom: "20px",
+            background: user.league
+              ? `${getTierGradient(user.league.tier)}`
+              : "#ffffff",
+            opacity: 0.9,
+            borderRadius: "8px",
+            boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
+            color: "#000000",
+          }}
+        >
+          {/* 유저 기본 정보 */}
+          <div style={{ marginBottom: "15px" }}>
+            <h2 style={{ margin: "0 0 10px 0" }}>👤 {user.summonerName}</h2>
             {user.league && (
-              <div>
-                <h3>🏆 솔로 랭크</h3>
-                <p>
+              <div style={{ display: "flex", gap: "20px" }}>
+                <p style={{ margin: "0" }}>
                   <strong>티어:</strong> {user.league.tier} {user.league.rank}
                 </p>
-                <p>
+                <p style={{ margin: "0" }}>
                   <strong>LP:</strong> {user.league.leaguePoints} LP
                 </p>
-                <p>
+                <p style={{ margin: "0" }}>
                   <strong>승/패:</strong> {user.league.wins}승{" "}
                   {user.league.losses}패
                 </p>
@@ -182,26 +279,8 @@ export default function Home() {
             )}
           </div>
 
-          {/* 최근 매치 정보 카드 */}
-          <div
-            style={{
-              border: "1px solid #eee",
-              padding: "15px",
-              marginBottom: "20px",
-              backgroundColor: "white",
-              borderRadius: "8px",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-            }}
-          >
-            <h3>🕹️ 최근 매치</h3>
-            {user.matches.length > 0 ? (
-              user.matches.map((matchId) => (
-                <MatchInfo key={matchId} matchId={matchId} />
-              ))
-            ) : (
-              <p>⚠️ 매치 정보 없음</p>
-            )}
-          </div>
+          {/* 최근 매치 정보 */}
+          <RecentMatches matches={user.matches} puuid={user.puuid} />
         </div>
       ))}
     </div>
