@@ -78,6 +78,48 @@ export default function Home() {
     );
   };
 
+  // 티어 순위 매핑
+  const tierOrder = {
+    CHALLENGER: 9,
+    GRANDMASTER: 8,
+    MASTER: 7,
+    DIAMOND: 6,
+    PLATINUM: 5,
+    GOLD: 4,
+    SILVER: 3,
+    BRONZE: 2,
+    IRON: 1,
+  };
+
+  // 랭크 순위 매핑
+  const rankOrder = {
+    I: 4,
+    II: 3,
+    III: 2,
+    IV: 1,
+  };
+
+  // 유저 정렬 함수
+  const sortUsers = (users) => {
+    return [...users].sort((a, b) => {
+      const aLeague = a.league?.[0] || {};
+      const bLeague = b.league?.[0] || {};
+
+      // 티어 비교
+      const tierDiff =
+        (tierOrder[bLeague.tier] || 0) - (tierOrder[aLeague.tier] || 0);
+      if (tierDiff !== 0) return tierDiff;
+
+      // 같은 티어면 랭크(I, II, III, IV) 비교
+      const rankDiff =
+        (rankOrder[bLeague.rank] || 0) - (rankOrder[aLeague.rank] || 0);
+      if (rankDiff !== 0) return rankDiff;
+
+      // 같은 랭크면 LP 비교
+      return (bLeague.leaguePoints || 0) - (aLeague.leaguePoints || 0);
+    });
+  };
+
   // 매치 정보를 보여주는 컴포넌트
   const MatchInfo = ({ matchId, puuid }) => {
     const [matchData, setMatchData] = useState(null);
@@ -125,6 +167,21 @@ export default function Home() {
       fetchMatchData();
     }, [matchId, puuid]);
 
+    const getMultiKillText = (matchData) => {
+      if (matchData.pentaKills > 0) return "펜타킬!";
+      if (matchData.quadraKills > 0) return "쿼드라킬!";
+      if (matchData.tripleKills > 0) return "트리플킬!";
+      if (matchData.doubleKills > 0) return "더블킬!";
+      return null;
+    };
+
+    const formatDate = (timestamp) => {
+      const date = new Date(timestamp);
+      const month = date.getMonth() + 1;
+      const day = date.getDate();
+      return `${month}/${day}`;
+    };
+
     if (loading) return <div>로딩중...</div>;
     if (error)
       return <div style={{ color: "red", fontSize: "0.9em" }}>{error}</div>;
@@ -155,22 +212,39 @@ export default function Home() {
             >
               {matchData.win ? "승리" : "패배"}
             </div>
+            <div style={{ fontSize: "0.8em", color: "#666" }}>
+              {formatDate(matchData.gameStartTimestamp)}
+            </div>
           </div>
         </div>
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
+            flexDirection: "column",
+            gap: "4px",
             fontSize: "0.9em",
             color: "#666",
           }}
         >
-          <div>
-            {matchData.kills}/{matchData.deaths}/{matchData.assists}
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div>
+              {matchData.kills}/{matchData.deaths}/{matchData.assists}
+            </div>
+            <div>
+              딜량: {matchData.totalDamageDealtToChampions.toLocaleString()}
+            </div>
           </div>
-          <div>
-            딜량: {matchData.totalDamageDealtToChampions.toLocaleString()}
-          </div>
+          {getMultiKillText(matchData) && (
+            <div
+              style={{
+                color: "#FF4081",
+                fontWeight: "bold",
+                textAlign: "center",
+              }}
+            >
+              {getMultiKillText(matchData)}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -240,11 +314,14 @@ export default function Home() {
   if (loading) return <p>데이터 불러오는 중...</p>;
   if (error) return <p>오류 발생: {error}</p>;
 
+  // 정렬된 유저 목록 사용
+  const sortedUsers = sortUsers(users);
+
   return (
     <div style={{ padding: "20px", fontFamily: "Arial" }}>
       <h1>🔹 6명의 유저 정보</h1>
 
-      {users.map((user, index) => (
+      {sortedUsers.map((user, index) => (
         <div
           key={index}
           style={{

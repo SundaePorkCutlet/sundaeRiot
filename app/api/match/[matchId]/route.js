@@ -46,6 +46,11 @@ export async function GET(request, { params }) {
       deaths: participant.deaths,
       assists: participant.assists,
       totalDamageDealtToChampions: participant.totalDamageDealtToChampions,
+      doubleKills: participant.doubleKills,
+      tripleKills: participant.tripleKills,
+      quadraKills: participant.quadraKills,
+      pentaKills: participant.pentaKills,
+      gameStartTimestamp: matchData.info.gameStartTimestamp,
     });
   } catch (error) {
     console.error("Error fetching match data:", error);
