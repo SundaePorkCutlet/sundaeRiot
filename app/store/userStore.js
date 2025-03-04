@@ -1,25 +1,17 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 
-const useUserStore = create(
-  persist(
-    (set) => ({
-      users: [],
-      lastFetchTime: null,
-      setUsers: (users) => set({ users, lastFetchTime: Date.now() }),
-      shouldFetch: () => {
-        const state = useUserStore.getState();
-        if (!state.lastFetchTime) return true;
-        
-        // 마지막 fetch로부터 2분이 지났는지 확인
-        const TWO_MINUTES = 2 * 60 * 1000;
-        return Date.now() - state.lastFetchTime > TWO_MINUTES;
-      },
-    }),
-    {
-      name: 'user-storage',
-    }
-  )
-);
+const useUserStore = create((set, get) => ({
+  users: [],
+  championKoreanNames: {},
+  lastFetchTime: null,
+  setUsers: (users) => set({ users, lastFetchTime: new Date() }),
+  setChampionKoreanNames: (names) => set({ championKoreanNames: names }),
+  shouldFetch: () => {
+    const lastFetch = get().lastFetchTime;
+    if (!lastFetch) return true;
+    const now = new Date();
+    return now - lastFetch > 2 * 60 * 1000; // 2분
+  }
+}));
 
 export default useUserStore; 

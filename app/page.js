@@ -68,6 +68,30 @@ const MatchInfo = ({ matchId, puuid }) => {
   const [matchData, setMatchData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [championKoreanNames, setChampionKoreanNames] = useState({});
+
+  useEffect(() => {
+    // 챔피언 데이터 가져오기
+    const fetchChampionData = async () => {
+      try {
+        const response = await fetch(
+          'https://ddragon.leagueoflegends.com/cdn/13.24.1/data/ko_KR/champion.json'
+        );
+        const data = await response.json();
+        
+        const koreanNames = {};
+        Object.values(data.data).forEach(champion => {
+          koreanNames[champion.id] = champion.name; // 영문 ID를 키로, 한글 이름을 값으로
+        });
+        
+        setChampionKoreanNames(koreanNames);
+      } catch (error) {
+        console.error('Failed to fetch champion data:', error);
+      }
+    };
+
+    fetchChampionData();
+  }, []);
 
   useEffect(() => {
     const fetchMatchData = async () => {
@@ -127,11 +151,13 @@ const MatchInfo = ({ matchId, puuid }) => {
       <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
         <img
           src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/${matchData.championName}.png`}
-          alt={matchData.championName}
+          alt={championKoreanNames[matchData.championName] || matchData.championName}
           style={{ width: "40px", height: "40px", borderRadius: "50%" }}
         />
         <div>
-          <div style={{ fontWeight: "bold" }}>{matchData.championName}</div>
+          <div style={{ fontWeight: "bold" }}>
+            {championKoreanNames[matchData.championName] || matchData.championName}
+          </div>
           <div style={{ color: matchData.win ? "#2196F3" : "#F44336", fontSize: "0.9em" }}>
             {matchData.win ? "승리" : "패배"}
           </div>
