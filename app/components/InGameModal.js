@@ -3,6 +3,27 @@ import { useState, useEffect } from 'react';
 import styles from './InGameModal.module.css';
 import useUserStore from '../store/userStore';
 
+// 로딩 키워드 배열
+const randomLoadingKeyword = [
+  "움치기가 키우는 고양이의 이름은 랑이 입니다.",
+  "움치기와 순대돈까스는 단 한번도 같은 반이 된 적이 없습니다.",
+  "죗연진은 g70을 싫어합니다.",
+  "움치기는 원딜러 빡구컷은 서포터가 주 라인이지만 둘은 절대 바텀듀오를 하지 않습니다.",
+  "밥뚱원은 서일순대국을 일주일에 2번을 꼭 갑니다.",
+  "섹디르는 고등학생때 공부를 굉장히 잘했습니다."
+];
+
+function useRandomLoadingMessage() {
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * randomLoadingKeyword.length);
+    setMessage(randomLoadingKeyword[randomIndex]);
+  }, []);
+
+  return message;
+}
+
 function GameTimer({ gameStartTime }) {
   const [elapsedTime, setElapsedTime] = useState('');
 
@@ -91,8 +112,22 @@ export function InGameModal({ isOpen, onClose, gameData }) {
   const championMap = useChampionData();
   const spellMap = useSpellData();
   const championKoreanNames = useUserStore(state => state.championKoreanNames);
+  const loadingMessage = useRandomLoadingMessage();
   
   if (!isOpen) return null;
+
+  if (!gameData) {
+    return (
+      <div className={styles.modalOverlay}>
+        <div className={styles.modalContent}>
+          <button className={styles.closeButton} onClick={onClose}>×</button>
+          <div className={styles.loadingContainer}>
+            <p>{loadingMessage}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const gameStartTime = gameData?.gameStartTime;
 

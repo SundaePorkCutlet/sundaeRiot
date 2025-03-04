@@ -8,6 +8,9 @@ import React from "react";
 let isRateLimited = false;
 let rateLimitResetTime = null;
 
+
+let randomLoadingKeyword = ["움치기가 키우는 고양이의 이름은 랑이 입니다.","움치기와 순대돈까스는 단 한번도 같은 반이 된 적이 없습니다.","죗연진은 g70을 싫어합니다.","움치기는 원딜러 빡구컷은 서포터가 주 라인이지만 둘은 절대 바텀듀오를 하지 않습니다.","밥뚱원은 서일순대국을 일주일에 2번을 꼭 갑니다.","섹디르는 고등학생때 공부를 굉장히 잘했습니다.","빡구컷은 갓 대 황 데시앙포레에 삽니다.","밥뚱원은 현재 다이어트 중입니다.", "죗연진은 역류성 식도염을 가지고 있습니다."]
+
 // RecentMatches 컴포넌트를 먼저 정의
 const RecentMatches = ({ matches, puuid }) => {
   const [rankedMatches, setRankedMatches] = useState([]);
@@ -203,41 +206,56 @@ export default function Home() {
   const [inGameData, setInGameData] = useState(null);
   const [checkingInGame, setCheckingInGame] = useState({}); // 각 유저별 로딩 상태
   const [inGameLoading, setInGameLoading] = useState({}); // 인게임 체크용 별도 상태
+  const [loadingMessage, setLoadingMessage] = useState("");
+
+  useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * randomLoadingKeyword.length);
+    setLoadingMessage(randomLoadingKeyword[randomIndex]);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
-      // 2분이 지나지 않았다면 저장된 데이터 사용
-      if (!shouldFetch()) {
-        setUsers(storedUsers);
-        setLoading(false);
-        return;
-      }
-
+      const startTime = Date.now();  // 시작 시간 기록
+      
       try {
-        console.log("🔹 `/api/user` 호출 시작...");
-        const res = await fetch("/api/user");
-        console.log("🔹 응답 상태 코드:", res.status);
+        if (!shouldFetch()) {
+          setUsers(storedUsers);
+        } else {
+          console.log("🔹 `/api/user` 호출 시작...");
+          const res = await fetch("/api/user");
+          console.log("🔹 응답 상태 코드:", res.status);
 
-        if (!res.ok) throw new Error(`HTTP 오류 상태 코드: ${res.status}`);
+          if (!res.ok) throw new Error(`HTTP 오류 상태 코드: ${res.status}`);
 
-        const result = await res.json();
-        console.log("✅ 서버에서 받은 데이터:", result);
+          const result = await res.json();
+          console.log("✅ 서버에서 받은 데이터:", result);
 
-        // 🔹 "솔로 랭크 (RANKED_SOLO_5x5)"만 필터링
-        const filteredData = result.map((user, index) => ({
-          summonerName: summonerNames[index], // PUUID 순서와 동일한 소환사명 추가
-          puuid: user.puuid,
-          league:
-            user.league.find((l) => l.queueType === "RANKED_SOLO_5x5") || null,
-          matches: user.matches,
-        }));
+          // 🔹 "솔로 랭크 (RANKED_SOLO_5x5)"만 필터링
+          const filteredData = result.map((user, index) => ({
+            summonerName: summonerNames[index], // PUUID 순서와 동일한 소환사명 추가
+            puuid: user.puuid,
+            league:
+              user.league.find((l) => l.queueType === "RANKED_SOLO_5x5") || null,
+            matches: user.matches,
+          }));
 
-        setUsers(filteredData);
-        storeUsers(filteredData); // store에 데이터 저장
+          setUsers(filteredData);
+          storeUsers(filteredData); // store에 데이터 저장
+        }
       } catch (err) {
         console.error("❌ 오류 발생:", err);
         setError(err.message);
       } finally {
+        const elapsedTime = Date.now() - startTime;
+        const minimumLoadingTime = 2000; // 2초
+
+        // 1초와의 차이만큼 더 기다림
+        if (elapsedTime < minimumLoadingTime) {
+          await new Promise(resolve => 
+            setTimeout(resolve, minimumLoadingTime - elapsedTime)
+          );
+        }
+        
         setLoading(false);
       }
     };
@@ -335,7 +353,20 @@ export default function Home() {
     }
   };
 
-  if (loading) return <p>데이터 불러오는 중...</p>;
+  // 로딩 상태일 때 보여줄 컴포넌트
+  if (loading) return (
+    <div className="loading-container">
+      <div className="loading-icon">
+        🎮
+      </div>
+      <p className="loading-text">
+        {loadingMessage}
+      </p>
+      <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '1rem' }}>
+        잠시만 기다려주세요...
+      </div>
+    </div>
+  );
   if (error) return <p>오류 발생: {error}</p>;
 
   // 정렬된 유저 목록에서 대장 찾기
