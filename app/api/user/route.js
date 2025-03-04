@@ -1,9 +1,22 @@
-export async function GET() {
-  console.log("🔹 환경 변수 체크");
-  console.log("RIOT_API_KEY:", process.env.RIOT_API_KEY);
-  console.log("USER_PUUIDS:", process.env.USER_PUUIDS);
+// 메모리 캐시 객체
+const userCache = {
+  data: null,
+  timestamp: null,
+};
 
+const TWO_MINUTES = 2 * 60 * 1000; // 2분을 밀리초로 변환
+
+export async function GET() {
   try {
+    const now = Date.now();
+
+    // 캐시가 있고 2분이 지나지 않았다면 캐시된 데이터 반환
+    if (userCache.data && userCache.timestamp && (now - userCache.timestamp) < TWO_MINUTES) {
+      console.log("🔹 캐시된 유저 데이터 반환");
+      return new Response(JSON.stringify(userCache.data), { status: 200 });
+    }
+
+    console.log("🔹 새로운 유저 데이터 요청");
     const RIOT_API_KEY = process.env.RIOT_API_KEY;
     const USER_PUUIDS = process.env.USER_PUUIDS?.split(",");
 
@@ -33,6 +46,10 @@ export async function GET() {
         return { puuid, league: leagueData, matches: matchIds };
       })
     );
+
+    // 캐시 업데이트
+    userCache.data = userData;
+    userCache.timestamp = now;
 
     return new Response(JSON.stringify(userData), { status: 200 });
   } catch (error) {

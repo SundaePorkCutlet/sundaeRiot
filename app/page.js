@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import useUserStore from './store/userStore';
 
 // Rate limit 상태 관리를 위한 전역 변수
 let isRateLimited = false;
@@ -16,12 +17,20 @@ export default function Home() {
     "섹디르",
   ];
 
+  const { users: storedUsers, setUsers: storeUsers, shouldFetch } = useUserStore();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
+      // 2분이 지나지 않았다면 저장된 데이터 사용
+      if (!shouldFetch()) {
+        setUsers(storedUsers);
+        setLoading(false);
+        return;
+      }
+
       try {
         console.log("🔹 `/api/user` 호출 시작...");
         const res = await fetch("/api/user");
@@ -42,6 +51,7 @@ export default function Home() {
         }));
 
         setUsers(filteredData);
+        storeUsers(filteredData); // store에 데이터 저장
       } catch (err) {
         console.error("❌ 오류 발생:", err);
         setError(err.message);
@@ -51,7 +61,7 @@ export default function Home() {
     };
 
     fetchData();
-  }, []);
+  }, [shouldFetch, storedUsers, storeUsers]);
 
   // 티어별 배경 그라데이션 설정
   const getTierGradient = (tier) => {
@@ -102,17 +112,15 @@ export default function Home() {
   // 유저 정렬 함수
   const sortUsers = (users) => {
     return [...users].sort((a, b) => {
-      const aLeague = a.league?.[0] || {};
-      const bLeague = b.league?.[0] || {};
+      const aLeague = a.league || {};  // league가 배열이 아닌 객체로 가정
+      const bLeague = b.league || {};
 
       // 티어 비교
-      const tierDiff =
-        (tierOrder[bLeague.tier] || 0) - (tierOrder[aLeague.tier] || 0);
+      const tierDiff = (tierOrder[bLeague.tier] || 0) - (tierOrder[aLeague.tier] || 0);
       if (tierDiff !== 0) return tierDiff;
 
       // 같은 티어면 랭크(I, II, III, IV) 비교
-      const rankDiff =
-        (rankOrder[bLeague.rank] || 0) - (rankOrder[aLeague.rank] || 0);
+      const rankDiff = (rankOrder[bLeague.rank] || 0) - (rankOrder[aLeague.rank] || 0);
       if (rankDiff !== 0) return rankDiff;
 
       // 같은 랭크면 LP 비교
@@ -314,8 +322,15 @@ export default function Home() {
   if (loading) return <p>데이터 불러오는 중...</p>;
   if (error) return <p>오류 발생: {error}</p>;
 
+  // 정렬된 유저 목록에서 대장 찾기
+  const findLeader = (users) => {
+    const filteredUsers = users.filter(user => user.summonerName !== "섹디르");
+    return filteredUsers.length > 0 ? filteredUsers[0].summonerName : null;
+  };
+
   // 정렬된 유저 목록 사용
   const sortedUsers = sortUsers(users);
+  const leaderName = findLeader(sortedUsers);
 
   return (
     <div style={{ padding: "20px", fontFamily: "Arial" }}>
@@ -339,7 +354,29 @@ export default function Home() {
         >
           {/* 유저 기본 정보 */}
           <div style={{ marginBottom: "15px" }}>
-            <h2 style={{ margin: "0 0 10px 0" }}>👤 {user.summonerName}</h2>
+            <h2 style={{ margin: "0 0 10px 0" }}>
+              👤 {user.summonerName}
+              {user.summonerName === leaderName && (
+                <span style={{ 
+                  marginLeft: "10px", 
+                  color: "#FFD700", 
+                  fontWeight: "bold",
+                  textShadow: "1px 1px 2px rgba(0,0,0,0.3)"
+                }}>
+                  👑 대장!
+                </span>
+              )}
+              {user.summonerName === "섹디르" && (
+                <span style={{ 
+                  marginLeft: "10px", 
+                  color: "#FF4081", 
+                  fontWeight: "bold",
+                  textShadow: "1px 1px 2px rgba(0,0,0,0.3)"
+                }}>
+                  💀 넘사벽!
+                </span>
+              )}
+            </h2>
             {user.league && (
               <div style={{ display: "flex", gap: "20px" }}>
                 <p style={{ margin: "0" }}>

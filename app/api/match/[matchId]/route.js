@@ -1,11 +1,33 @@
 import { NextResponse } from "next/server";
 
-export async function GET(request, { params }) {
+// 메모리 캐시 객체
+const matchCache = {
+  data: new Map(),
+  timestamps: new Map(),
+};
+
+const TWO_MINUTES = 2 * 60 * 1000; // 2분을 밀리초로 변환
+
+export async function GET(request, context) {
+  const params = await context.params;  // params 전체를 await
+  const { matchId } = params;  // 그 다음 구조분해
+  
   try {
     const { searchParams } = new URL(request.url);
     const puuid = searchParams.get("puuid");
-    const { matchId } = await params;
 
+    // 캐시 확인
+    const cachedData = matchCache.data.get(matchId);
+    const cachedTimestamp = matchCache.timestamps.get(matchId);
+    const now = Date.now();
+
+    // 캐시가 있고 2분이 지나지 않았다면 캐시된 데이터 반환
+    if (cachedData && cachedTimestamp && (now - cachedTimestamp) < TWO_MINUTES) {
+      console.log(`🔹 캐시된 매치 데이터 반환: ${matchId}`);
+      return NextResponse.json(cachedData);
+    }
+
+    console.log(`🔹 새로운 매치 데이터 요청: ${matchId}`);
     const response = await fetch(
       `https://asia.api.riotgames.com/lol/match/v5/matches/${matchId}`,
       {
@@ -21,15 +43,17 @@ export async function GET(request, { params }) {
 
     const matchData = await response.json();
 
-    // 솔로 랭크 게임이 아닌 경우
     if (matchData.info.queueId !== 420) {
-      return NextResponse.json({
+      const result = {
         isRanked: false,
         error: "Not a solo ranked game",
-      });
+      };
+      // 캐시 업데이트
+      matchCache.data.set(matchId, result);
+      matchCache.timestamps.set(matchId, now);
+      return NextResponse.json(result);
     }
 
-    // PUUID로 해당 플레이어 찾기
     const participant = matchData.info.participants.find(
       (p) => p.puuid === puuid
     );
@@ -38,7 +62,7 @@ export async function GET(request, { params }) {
       throw new Error("Player not found in match data");
     }
 
-    return NextResponse.json({
+    const result = {
       isRanked: true,
       championName: participant.championName,
       win: participant.win,
@@ -51,7 +75,13 @@ export async function GET(request, { params }) {
       quadraKills: participant.quadraKills,
       pentaKills: participant.pentaKills,
       gameStartTimestamp: matchData.info.gameStartTimestamp,
-    });
+    };
+
+    // 캐시 업데이트
+    matchCache.data.set(matchId, result);
+    matchCache.timestamps.set(matchId, now);
+    
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Error fetching match data:", error);
     return NextResponse.json(
