@@ -42,47 +42,46 @@ const RecentMatches = ({ matches, puuid }) => {
 
   useEffect(() => {
     const fetchRankedMatches = async () => {
-      try {
-        setLoading(true);
-        // 처음 3개의 매치만 병렬로 요청
-        const matchPromises = matches.slice(0, 3).map(async (matchId) => {
-          try {
-            const cacheKey = `match-${matchId}-${puuid}`;
-            const cachedData = getCachedData(cacheKey);
-            
-            if (cachedData) {
-              console.log('Using cached match data:', matchId);
-              return { matchId, data: cachedData };
-            }
+      let rankedGames = [];
+      let index = 0;
+      let errors = 0;
 
-            const res = await fetch(`/api/match/${matchId}?puuid=${puuid}`);
-            const data = await res.json();
-            
-            if (!data.error) {
-              setCachedData(cacheKey, data);
+      while (rankedGames.length < 3 && index < matches.length && errors < 3) {
+        try {
+          const res = await fetch(
+            `/api/match/${matches[index]}?puuid=${puuid}`
+          );
+          const data = await res.json();
+
+          // 429 에러이지만 캐시된 데이터가 있는 경우
+          if (res.status === 429 && data && !data.error) {
+            console.log('Using cached match data:', matches[index]);
+            if (data.isRanked) {
+              rankedGames.push(matches[index]);
             }
-            
-            return { matchId, data };
-          } catch (err) {
-            console.error(`Error fetching match ${matchId}:`, err);
-            return { matchId, error: err };
           }
-        });
-
-        const results = await Promise.all(matchPromises);
-        
-        // 성공적으로 가져온 랭크 매치만 필터링
-        const validMatches = results
-          .filter(result => result.data && !result.error && result.data.isRanked)
-          .map(result => result.matchId);
-
-        setRankedMatches(validMatches);
-      } catch (err) {
-        console.error('Error fetching matches:', err);
-        setError('매치 정보를 불러오는데 실패했습니다.');
-      } finally {
-        setLoading(false);
+          // 정상적인 응답인 경우
+          else if (res.ok && data.isRanked) {
+            rankedGames.push(matches[index]);
+          }
+          // 실제 에러인 경우
+          else if (!res.ok && res.status !== 429) {
+            errors++;
+            console.error(`매치 데이터 로딩 오류 (${matches[index]}):`, data.error);
+          }
+        } catch (err) {
+          errors++;
+          console.error(`매치 데이터 로딩 오류 (${matches[index]}):`, err);
+        }
+        index++;
       }
+
+      if (rankedGames.length === 0 && errors > 0) {
+        setError("최근 랭크 게임을 불러오는데 실패했습니다.");
+      }
+
+      setRankedMatches(rankedGames);
+      setLoading(false);
     };
 
     fetchRankedMatches();
@@ -113,7 +112,14 @@ const RecentMatches = ({ matches, puuid }) => {
   }
 
   return (
-    <div style={{ display: "flex", gap: "15px", marginTop: "15px" }}>
+    <div style={{ 
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+      gap: "10px",
+      marginTop: "15px",
+      maxHeight: window.innerWidth <= 768 ? "400px" : "auto", // 모바일에서 높이 제한
+      overflow: window.innerWidth <= 768 ? "hidden" : "visible" // 모바일에서 오버플로우 숨김
+    }}>
       {rankedMatches.map((matchId) => (
         <div
           key={matchId}

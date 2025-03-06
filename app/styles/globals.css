@@ -1,0 +1,96 @@
+/* 기본 반응형 설정 */
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+
+  body {
+    padding: 10px;
+  }
+}
+
+/* 모바일 대응 */
+@media (max-width: 768px) {
+  .container {
+    padding: 10px;
+  }
+
+  /* 매치 카드 스타일 */
+  .match-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px !important;
+    margin-bottom: 10px !important;
+  }
+
+  /* 매치 헤더 (챔피언 이미지, 스펠, KDA 등) */
+  .match-header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* 챔피언 이미지 */
+  .champion-image {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+  }
+
+  /* 스펠 이미지 */
+  .spell-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .spell-image {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* 아이템 빌드 */
+  .items-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: flex-start;
+  }
+
+  .item-image {
+    width: 25px;
+    height: 25px;
+    border-radius: 4px;
+  }
+
+  /* KDA 및 결과 정보 */
+  .match-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.9rem;
+  }
+
+  /* 유저 카드 스타일 */
+  .user-card {
+    padding: 15px !important;
+    margin-bottom: 15px !important;
+  }
+
+  /* 인게임 버튼 */
+  .ingame-button {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+
+  /* 티어 정보 */
+  .user-info {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 0.9rem;
+  }
+} 

@@ -174,3 +174,70 @@ body {
 .time {
   color: #888;
 }
+
+/* 모바일 대응 (768px 이하) */
+@media (max-width: 768px) {
+  /* 전체 컨테이너 */
+  .container {
+    padding: 8px;
+  }
+
+  /* 유저 카드 (소환사 정보 카드) */
+  div[style*="border: 1px solid #ccc"] {
+    margin: 10px 0 !important;
+    min-height: 600px !important;  /* 최소 높이 설정 */
+  }
+
+  /* 매치 그리드 레이아웃 수정 */
+  div[style*="grid-template-columns"] {
+    display: flex !important;
+    flex-direction: column !important;  /* 세로 배치 */
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  /* 매치 카드 (흰색 배경) */
+  div[style*="background-color: rgba(255, 255, 255"] {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 120px !important;
+    padding: 12px !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;  /* 가로 배치로 변경 */
+    align-items: center !important;
+    gap: 12px !important;
+  }
+
+  /* 챔피언 정보 영역 */
+  div[style*="display: flex"] {
+    flex-shrink: 0 !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  /* 챔피언 이름 */
+  span {
+    font-size: 0.9rem !important;
+    white-space: normal !important;  /* 줄바꿈 허용 */
+    word-break: keep-all !important;
+  }
+
+  /* 챔피언 이미지 */
+  img[alt*="champion"] {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 50% !important;
+  }
+
+  /* 스펠 이미지 */
+  img[alt*="spell"] {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  /* 매치 결과 텍스트 */
+  div[style*="text-align: right"] {
+    font-size: 0.85rem !important;
+  }
+}
