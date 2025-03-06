@@ -16,7 +16,6 @@ export async function GET(request, { params }) {
   const cacheKey = `match-${matchId}-${puuid}`;
 
   try {
-    // 서버 사이드에서 캐시 확인
     const cachedData = getCachedData(cacheKey);
     if (cachedData) {
       console.log('서버 캐시 사용:', cacheKey);
@@ -32,7 +31,6 @@ export async function GET(request, { params }) {
       }
     );
 
-    // 429 에러일 때도 캐시 확인
     if (res.status === 429) {
       const cachedData = getCachedData(cacheKey);
       if (cachedData) {
@@ -50,6 +48,8 @@ export async function GET(request, { params }) {
     );
 
     const responseData = {
+      matchId,
+      participantId: participant.participantId,  // timeline API에서 필요
       isRanked: matchData.info.queueId === 420,
       championName: participant.championName,
       win: participant.win,
@@ -74,13 +74,11 @@ export async function GET(request, { params }) {
       cacheKey
     };
 
-    // 응답 데이터 캐시에 저장
     setCachedData(cacheKey, responseData);
     return Response.json(responseData);
 
   } catch (error) {
     console.error("Error fetching match data:", error);
-    // 에러 발생시에도 캐시 확인
     const cachedData = getCachedData(cacheKey);
     if (cachedData) {
       console.log('Error - 서버 캐시 사용:', cacheKey);

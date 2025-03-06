@@ -1,0 +1,298 @@
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.modalContent {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  margin: 20px;
+  z-index: 10000;
+  color: #333;
+}
+
+/* 모달 내부 스크롤바 스타일링 */
+.modalContent::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modalContent::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.modalContent::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.modalContent::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* 모달 오버레이 스크롤 방지 */
+.modalOpen {
+  overflow: hidden;
+}
+
+.closeButton {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #666;
+  cursor: pointer;
+  padding: 5px;
+}
+
+.closeButton:hover {
+  color: #333;
+}
+
+.header {
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 1.2em;
+}
+
+.championInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.championName {
+  color: #2196F3;
+  font-size: 1.1em;
+  font-weight: bold;
+}
+
+.stats {
+  color: #666;
+}
+
+.result {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #2196F3;
+}
+
+.result.lose {
+  color: #F44336;
+}
+
+.kda {
+  font-size: 1.1em;
+  margin: 5px 0;
+}
+
+.damage {
+  color: #666;
+}
+
+.itemSection {
+  margin: 20px 0;
+}
+
+.finalItems {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.itemImage {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.buildOrder {
+  margin-top: 20px;
+}
+
+.buildOrder h4 {
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.timeline {
+  margin: 20px 0;
+  padding: 0 10px;
+  max-height: 400px;
+  overflow-y: auto;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+.timeline::-webkit-scrollbar {
+  width: 8px;
+}
+
+.timeline::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 4px;
+}
+
+.timeline::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+.timeline::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.buildItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timestamp {
+  color: #666;
+  font-size: 0.9em;
+  min-width: 45px;
+}
+
+.timelineEvent {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 8px;
+  margin: 4px 0;
+  transition: background-color 0.2s;
+}
+
+.timelineEvent:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.combatEvent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.02), transparent);
+  flex: 1;
+}
+
+.kill {
+  background: linear-gradient(to right, rgba(76, 175, 80, 0.08), transparent);
+  border-left: 3px solid rgba(76, 175, 80, 0.5);
+}
+
+.death {
+  background: linear-gradient(to right, rgba(244, 67, 54, 0.08), transparent);
+  border-left: 3px solid rgba(244, 67, 54, 0.5);
+}
+
+.championIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.assistIcon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s;
+}
+
+.assistIcon:hover {
+  transform: scale(1.1);
+}
+
+.assists {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.killIcon, .deathIcon {
+  font-size: 1.2em;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.killIcon {
+  color: #43a047;
+}
+
+.deathIcon {
+  color: #e53935;
+}
+
+.monsterKill {
+  background: linear-gradient(to right, rgba(255, 193, 7, 0.08), transparent);
+  border-left: 3px solid rgba(255, 193, 7, 0.5);
+}
+
+.towerKill {
+  background: linear-gradient(to right, rgba(156, 39, 176, 0.08), transparent);
+  border-left: 3px solid rgba(156, 39, 176, 0.5);
+}
+
+.monsterIcon, .towerIcon {
+  font-size: 1.2em;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.monsterName, .towerName {
+  font-size: 0.9em;
+  color: #333;
+}
+
+.monsterKill .monsterIcon {
+  color: #ff9800;
+}
+
+.towerKill .towerIcon {
+  color: #9c27b0;
+} 

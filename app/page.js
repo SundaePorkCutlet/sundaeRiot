@@ -4,6 +4,7 @@ import useUserStore from './store/userStore';
 import { InGameModal } from './components/InGameModal';
 import React from "react";
 import { getCachedData, setCachedData } from './utils/cache';
+import { MatchDetailModal } from './components/MatchDetailModal';
 
 // Rate limit 상태 관리를 위한 전역 변수
 let isRateLimited = false;
@@ -94,6 +95,7 @@ const MatchInfo = ({ matchId, puuid }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [version, setVersion] = useState('14.3.1');
+  const [showDetail, setShowDetail] = useState(false);
   const [championKoreanNames, setChampionKoreanNames] = useState({});
 
   useEffect(() => {
@@ -196,13 +198,12 @@ const MatchInfo = ({ matchId, puuid }) => {
   };
 
   if (loading) return <div>로딩중...</div>;
-  if (error) return <div style={{ color: "red", fontSize: "0.9em" }}>{error}</div>;
+  if (error) return <div>에러: {error}</div>;
   if (!matchData) return null;
 
   return (
     <div className="match-card">
-      {/* 상단부: 챔피언, 스펠, KDA */}
-      <div className="match-header">
+      <div className="match-header" onClick={() => setShowDetail(true)} style={{ cursor: 'pointer' }}>
         {/* 챔피언 이미지 */}
         <img
           src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${matchData.championName}.png`}
@@ -235,35 +236,43 @@ const MatchInfo = ({ matchId, puuid }) => {
             {matchData.kills}/{matchData.deaths}/{matchData.assists}
           </div>
         </div>
-      </div>
 
-      {/* 아이템 빌드 */}
-      <div className="items-container">
-        {[
-          matchData.item0,
-          matchData.item1,
-          matchData.item2,
-          matchData.item3,
-          matchData.item4,
-          matchData.item5,
-          matchData.item6
-        ].map((itemId, index) => (
-          itemId > 0 && (
-            <img
-              key={index}
-              src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/item/${itemId}.png`}
-              alt={`Item ${itemId}`}
-              className="item-image"
-              title={`아이템 ${index + 1}`}
-            />
-          )
-        ))}
+        {/* 아이템 빌드 */}
+        <div className="items-container">
+          {[
+            matchData.item0,
+            matchData.item1,
+            matchData.item2,
+            matchData.item3,
+            matchData.item4,
+            matchData.item5,
+            matchData.item6
+          ].map((itemId, index) => (
+            itemId > 0 && (
+              <img
+                key={index}
+                src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/item/${itemId}.png`}
+                alt={`Item ${itemId}`}
+                className="item-image"
+                title={`아이템 ${index + 1}`}
+              />
+            )
+          ))}
+        </div>
       </div>
 
       <div className="match-footer">
-        <span className="damage">딜량: {matchData.totalDamageDealtToChampions.toLocaleString()}</span>
-        <span className="time">{formatDate(matchData.gameStartTimestamp)}</span>
+        <span>딜량: {matchData.totalDamageDealtToChampions.toLocaleString()}</span>
+        <span>{formatDate(matchData.gameStartTimestamp)}</span>
       </div>
+
+      {showDetail && (
+        <MatchDetailModal
+          matchData={matchData}
+          version={version}
+          onClose={() => setShowDetail(false)}
+        />
+      )}
     </div>
   );
 };

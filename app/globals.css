@@ -163,6 +163,10 @@ body {
   color: #666;
 }
 
+.match-footer span {
+  color: #666;
+}
+
 .damage {
   font-weight: 500;
 }
