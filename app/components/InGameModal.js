@@ -58,7 +58,7 @@ function useChampionData() {
     async function fetchChampionData() {
       try {
         const response = await fetch(
-          'https://ddragon.leagueoflegends.com/cdn/13.24.1/data/ko_KR/champion.json'
+          'https://ddragon.leagueoflegends.com/cdn/15.2.1/data/ko_KR/champion.json'
         );
         const data = await response.json();
         
@@ -87,7 +87,7 @@ function useSpellData() {
     async function fetchSpellData() {
       try {
         const response = await fetch(
-          'https://ddragon.leagueoflegends.com/cdn/13.24.1/data/ko_KR/summoner.json'
+          'https://ddragon.leagueoflegends.com/cdn/15.2.1/data/ko_KR/summoner.json'
         );
         const data = await response.json();
         
@@ -157,21 +157,21 @@ export function InGameModal({ isOpen, onClose, gameData }) {
                     <div key={player.puuid} className={styles.player}>
                       <div className={styles.championInfo}>
                         <img 
-                          src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/${championName}.png`}
+                          src={`https://ddragon.leagueoflegends.com/cdn/15.2.1/img/champion/${championName}.png`}
                           alt={`Champion ${championName}`}
                           className={styles.championImage}
                           onError={(e) => {
                             e.target.onerror = null;
-                            e.target.src = 'https://ddragon.leagueoflegends.com/cdn/13.24.1/img/item/3340.png';
+                            e.target.src = 'https://ddragon.leagueoflegends.com/cdn/15.2.1/img/item/3340.png';
                           }}
                         />
                         <img 
-                          src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/spell/${spell1}.png`}
+                          src={`https://ddragon.leagueoflegends.com/cdn/15.2.1/img/spell/${spell1}.png`}
                           alt={`Spell ${spell1}`}
                           className={styles.spellImage}
                         />
                         <img 
-                          src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/spell/${spell2}.png`}
+                          src={`https://ddragon.leagueoflegends.com/cdn/15.2.1/img/spell/${spell2}.png`}
                           alt={`Spell ${spell2}`}
                           className={styles.spellImage}
                         />
@@ -195,21 +195,21 @@ export function InGameModal({ isOpen, onClose, gameData }) {
                     <div key={player.puuid} className={styles.player}>
                       <div className={styles.championInfo}>
                         <img 
-                          src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/${championName}.png`}
+                          src={`https://ddragon.leagueoflegends.com/cdn/15.2.1/img/champion/${championName}.png`}
                           alt={`Champion ${championName}`}
                           className={styles.championImage}
                           onError={(e) => {
                             e.target.onerror = null;
-                            e.target.src = 'https://ddragon.leagueoflegends.com/cdn/13.24.1/img/item/3340.png';
+                            e.target.src = 'https://ddragon.leagueoflegends.com/cdn/15.2.1/img/item/3340.png';
                           }}
                         />
                         <img 
-                          src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/spell/${spell1}.png`}
+                          src={`https://ddragon.leagueoflegends.com/cdn/15.2.1/img/spell/${spell1}.png`}
                           alt={`Spell ${spell1}`}
                           className={styles.spellImage}
                         />
                         <img 
-                          src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/spell/${spell2}.png`}
+                          src={`https://ddragon.leagueoflegends.com/cdn/15.2.1/img/spell/${spell2}.png`}
                           alt={`Spell ${spell2}`}
                           className={styles.spellImage}
                         />

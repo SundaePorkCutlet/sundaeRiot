@@ -13,6 +13,9 @@ export async function GET(request, context) {
   }
   
   try {
+    // 클라이언트에서 캐시 체크하도록 캐시 키 전달
+    const cacheKey = `ingame-${puuid}`;
+    
     const response = await fetch(
       `https://kr.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/${puuid}`,
       {
@@ -23,7 +26,10 @@ export async function GET(request, context) {
     );
 
     if (response.status === 404) {
-      return NextResponse.json({ error: "현재 게임중이 아닙니다." }, { status: 404 });
+      return NextResponse.json({ 
+        error: "현재 게임중이 아닙니다.",
+        cacheKey 
+      }, { status: 404 });
     }
 
     if (!response.ok) {
@@ -31,7 +37,7 @@ export async function GET(request, context) {
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    return NextResponse.json({ ...data, cacheKey });
 
   } catch (error) {
     console.error('Error fetching in-game data:', error);

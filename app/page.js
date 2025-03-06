@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import useUserStore from './store/userStore';
 import { InGameModal } from './components/InGameModal';
 import React from "react";
+import { getCachedData, setCachedData } from './utils/cache';
 
 // Rate limit 상태 관리를 위한 전역 변수
 let isRateLimited = false;
@@ -10,6 +11,27 @@ let rateLimitResetTime = null;
 
 
 let randomLoadingKeyword = ["움치기가 키우는 고양이의 이름은 랑이 입니다.","움치기와 순대돈까스는 단 한번도 같은 반이 된 적이 없습니다.","죗연진은 g70을 싫어합니다.","움치기는 원딜러 빡구컷은 서포터가 주 라인이지만 둘은 절대 바텀듀오를 하지 않습니다.","밥뚱원은 서일순대국을 일주일에 2번을 꼭 갑니다.","섹디르는 고등학생때 공부를 굉장히 잘했습니다.","빡구컷은 갓 대 황 데시앙포레에 삽니다.","밥뚱원은 현재 다이어트 중입니다.", "죗연진은 역류성 식도염을 가지고 있습니다."]
+
+// 스펠 ID를 키로 변환하는 함수를 컴포넌트 외부에 정의
+const getSpellKey = (spellId) => {
+  const spellMap = {
+    21: 'SummonerBarrier',
+    1: 'SummonerBoost',
+    14: 'SummonerDot',
+    3: 'SummonerExhaust',
+    4: 'SummonerFlash',
+    6: 'SummonerHaste',
+    7: 'SummonerHeal',
+    13: 'SummonerMana',
+    30: 'SummonerPoroRecall',
+    31: 'SummonerPoroThrow',
+    11: 'SummonerSmite',
+    39: 'SummonerSnowURFSnowball_Mark',
+    32: 'SummonerSnowball',
+    12: 'SummonerTeleport'
+  };
+  return spellMap[spellId] || 'SummonerFlash'; // 기본값으로 Flash 반환
+};
 
 // RecentMatches 컴포넌트를 먼저 정의
 const RecentMatches = ({ matches, puuid }) => {
@@ -71,14 +93,31 @@ const MatchInfo = ({ matchId, puuid }) => {
   const [matchData, setMatchData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [version, setVersion] = useState('14.3.1');
   const [championKoreanNames, setChampionKoreanNames] = useState({});
+
+  useEffect(() => {
+    // DataDragon 버전 가져오기
+    const fetchVersion = async () => {
+      try {
+        const response = await fetch('https://ddragon.leagueoflegends.com/api/versions.json');
+        const versions = await response.json();
+        setVersion(versions[0]); // 최신 버전 사용
+      } catch (error) {
+        console.error('버전 정보 가져오기 실패:', error);
+        // 기본 버전 유지
+      }
+    };
+
+    fetchVersion();
+  }, []);
 
   useEffect(() => {
     // 챔피언 데이터 가져오기
     const fetchChampionData = async () => {
       try {
         const response = await fetch(
-          'https://ddragon.leagueoflegends.com/cdn/13.24.1/data/ko_KR/champion.json'
+          'https://ddragon.leagueoflegends.com/cdn/15.2.1/data/ko_KR/champion.json'
         );
         const data = await response.json();
         
@@ -99,26 +138,37 @@ const MatchInfo = ({ matchId, puuid }) => {
   useEffect(() => {
     const fetchMatchData = async () => {
       try {
-        if (isRateLimited) {
-          const now = new Date();
-          if (rateLimitResetTime && now < rateLimitResetTime) {
-            throw new Error("API 호출 제한 중입니다. 잠시 후 다시 시도해주세요.");
-          }
-          isRateLimited = false;
+        const cacheKey = `match-${matchId}-${puuid}`;
+        const cachedData = getCachedData(cacheKey);
+        
+        if (cachedData) {
+          console.log('캐시된 매치 데이터 사용:', matchId);
+          setMatchData(cachedData);
+          setLoading(false);
+          return;
         }
 
         const res = await fetch(`/api/match/${matchId}?puuid=${puuid}`);
-
+        const data = await res.json();
+        
         if (res.status === 429) {
-          isRateLimited = true;
-          rateLimitResetTime = new Date(Date.now() + 2 * 60 * 1000);
-          throw new Error("API 호출 횟수가 초과되었습니다. 잠시 후 다시 시도해주세요.");
+          const cachedData = getCachedData(cacheKey);
+          if (cachedData) {
+            console.log('Rate limit - 캐시 데이터 사용:', matchId);
+            setMatchData(cachedData);
+            setLoading(false);
+            return;
+          }
+          throw new Error("API 호출 제한 초과");
         }
 
-        if (!res.ok) throw new Error(`HTTP 오류: ${res.status}`);
-
-        const data = await res.json();
-        setMatchData(data);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        
+        if (!data.error) {
+          console.log('새로운 매치 데이터 캐시:', matchId);
+          setCachedData(cacheKey, data);
+          setMatchData(data);
+        }
       } catch (err) {
         console.error(`매치 데이터 로딩 오류 (${matchId}):`, err);
         setError(err.message);
@@ -150,35 +200,69 @@ const MatchInfo = ({ matchId, puuid }) => {
   if (!matchData) return null;
 
   return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+    <div className="match-card">
+      {/* 상단부: 챔피언, 스펠, KDA */}
+      <div className="match-header">
+        {/* 챔피언 이미지 */}
         <img
-          src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/${matchData.championName}.png`}
+          src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${matchData.championName}.png`}
           alt={championKoreanNames[matchData.championName] || matchData.championName}
-          style={{ width: "40px", height: "40px", borderRadius: "50%" }}
+          className="champion-image"
         />
-        <div>
-          <div style={{ fontWeight: "bold" }}>
+        
+        {/* 스펠 이미지 */}
+        <div className="spell-container">
+          <img
+            src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/spell/${getSpellKey(matchData.summoner1Id)}.png`}
+            alt={`Spell 1`}
+            className="spell-image"
+          />
+          <img
+            src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/spell/${getSpellKey(matchData.summoner2Id)}.png`}
+            alt={`Spell 2`}
+            className="spell-image"
+          />
+        </div>
+
+        <div className="match-info">
+          <div className="champion-name">
             {championKoreanNames[matchData.championName] || matchData.championName}
           </div>
-          <div style={{ color: matchData.win ? "#2196F3" : "#F44336", fontSize: "0.9em" }}>
-            {matchData.win ? "승리" : "패배"}
+          <div className={`match-result ${matchData.win ? 'win' : 'lose'}`}>
+            {matchData.win ? '승리' : '패배'}
           </div>
-          <div style={{ fontSize: "0.8em", color: "#666" }}>
-            {formatDate(matchData.gameStartTimestamp)}
+          <div className="kda">
+            {matchData.kills}/{matchData.deaths}/{matchData.assists}
           </div>
         </div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.9em", color: "#666" }}>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <div>{matchData.kills}/{matchData.deaths}/{matchData.assists}</div>
-          <div>딜량: {matchData.totalDamageDealtToChampions.toLocaleString()}</div>
-        </div>
-        {getMultiKillText(matchData) && (
-          <div style={{ color: "#FF4081", fontWeight: "bold", textAlign: "center" }}>
-            {getMultiKillText(matchData)}
-          </div>
-        )}
+
+      {/* 아이템 빌드 */}
+      <div className="items-container">
+        {[
+          matchData.item0,
+          matchData.item1,
+          matchData.item2,
+          matchData.item3,
+          matchData.item4,
+          matchData.item5,
+          matchData.item6
+        ].map((itemId, index) => (
+          itemId > 0 && (
+            <img
+              key={index}
+              src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/item/${itemId}.png`}
+              alt={`Item ${itemId}`}
+              className="item-image"
+              title={`아이템 ${index + 1}`}
+            />
+          )
+        ))}
+      </div>
+
+      <div className="match-footer">
+        <span className="damage">딜량: {matchData.totalDamageDealtToChampions.toLocaleString()}</span>
+        <span className="time">{formatDate(matchData.gameStartTimestamp)}</span>
       </div>
     </div>
   );

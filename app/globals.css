@@ -77,3 +77,96 @@ body {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+.match-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.match-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.champion-image {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+.spell-container {
+  display: flex;
+  gap: 4px;
+}
+
+.spell-image {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+}
+
+.match-info {
+  flex-grow: 1;
+}
+
+.champion-name {
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+.match-result {
+  font-size: 0.9em;
+  margin: 2px 0;
+}
+
+.match-result.win {
+  color: #2196F3;
+}
+
+.match-result.lose {
+  color: #F44336;
+}
+
+.kda {
+  font-size: 0.9em;
+  color: #666;
+}
+
+.items-container {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.item-image {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  transition: transform 0.2s;
+}
+
+.item-image:hover {
+  transform: scale(1.1);
+  cursor: pointer;
+}
+
+.match-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 0.85em;
+  color: #666;
+}
+
+.damage {
+  font-weight: 500;
+}
+
+.time {
+  color: #888;
+}
