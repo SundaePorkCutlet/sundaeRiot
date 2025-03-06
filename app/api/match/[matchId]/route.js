@@ -16,9 +16,10 @@ export async function GET(request, { params }) {
   const cacheKey = `match-${matchId}-${puuid}`;
 
   try {
+    // 먼저 캐시 확인
     const cachedData = getCachedData(cacheKey);
     if (cachedData) {
-      console.log('서버 캐시 사용:', cacheKey);
+      console.log('Using cached match data:', matchId);
       return Response.json(cachedData);
     }
 
@@ -31,17 +32,20 @@ export async function GET(request, { params }) {
       }
     );
 
+    // 429 에러 발생 시 캐시된 데이터 다시 확인
     if (res.status === 429) {
+      console.log('Rate limit reached, checking cache again:', matchId);
       const cachedData = getCachedData(cacheKey);
       if (cachedData) {
-        console.log('Rate limit - 서버 캐시 사용:', cacheKey);
         return Response.json(cachedData);
       }
-      return Response.json({ cacheKey, error: "Rate limit exceeded" }, { status: 429 });
+      return Response.json({ error: 'Rate limit reached' }, { status: 429 });
     }
 
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-    
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+
     const matchData = await res.json();
     const participant = matchData.info.participants.find(
       (p) => p.puuid === puuid
@@ -74,14 +78,15 @@ export async function GET(request, { params }) {
       cacheKey
     };
 
+    // 새로운 데이터 캐시에 저장
     setCachedData(cacheKey, responseData);
     return Response.json(responseData);
 
   } catch (error) {
     console.error("Error fetching match data:", error);
+    // 에러 발생 시 캐시 다시 확인
     const cachedData = getCachedData(cacheKey);
     if (cachedData) {
-      console.log('Error - 서버 캐시 사용:', cacheKey);
       return Response.json(cachedData);
     }
     return Response.json({ error: error.message }, { status: 500 });

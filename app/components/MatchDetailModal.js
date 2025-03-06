@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styles from './MatchDetailModal.module.css';
 import { formatDate } from '../utils/date';
+import { getCachedData, setCachedData } from '../utils/cache';
 import { createPortal } from 'react-dom';
 
 const EventIcon = ({ type }) => {
@@ -17,9 +18,8 @@ const EventIcon = ({ type }) => {
 const renderCombatEvent = (event, version) => {
   switch (event.type) {
     case 'KILL':
-    case 'DEATH':
       return (
-        <div className={styles.combatEvent}>
+        <div className={`${styles.combatEvent} ${styles.kill}`}>
           <span className={styles.killIcon}>⚔️</span>
           <img
             src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${event.victimChampion}.png`}
@@ -27,11 +27,11 @@ const renderCombatEvent = (event, version) => {
             className={styles.championIcon}
             title={`${event.victimChampion} 처치`}
           />
-          {event.assistingParticipants.length > 0 && (
+          {event.assistingParticipants?.length > 0 && (
             <div className={styles.assists}>
               {event.assistingParticipants.map((champion, idx) => (
                 <img
-                  key={idx}
+                  key={`${event.timestamp}-${champion}-${idx}`}
                   src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${champion}.png`}
                   alt={champion}
                   className={styles.assistIcon}
@@ -42,47 +42,74 @@ const renderCombatEvent = (event, version) => {
           )}
         </div>
       );
-    case 'MONSTER_KILL':
-      const monsterIcons = {
-        'DRAGON': {
-          'FIRE': '🔥',
-          'WATER': '🌊',
-          'EARTH': '🗻',
-          'AIR': '💨',
-          'ELDER': '🐉',
-          'CHEMTECH': '☣️',
-          'HEXTECH': '⚡'
-        },
-        'RIFTHERALD': '👾',
-        'BARON_NASHOR': '👹'
-      };
-      
-      const monsterNames = {
-        'DRAGON': {
-          'FIRE': '화염 드래곤',
-          'WATER': '바다 드래곤',
-          'EARTH': '대지 드래곤',
-          'AIR': '바람 드래곤',
-          'ELDER': '장로 드래곤',
-          'CHEMTECH': '화학공학 드래곤',
-          'HEXTECH': '마법공학 드래곤'
-        },
-        'RIFTHERALD': '전령',
-        'BARON_NASHOR': '바론 내셔'
-      };
 
-      const icon = event.monsterSubType ? 
-        monsterIcons['DRAGON'][event.monsterSubType] : 
-        monsterIcons[event.monsterType];
-      
-      const name = event.monsterSubType ? 
-        monsterNames['DRAGON'][event.monsterSubType] : 
-        monsterNames[event.monsterType];
+    case 'DEATH':
+      return (
+        <div className={`${styles.combatEvent} ${styles.death}`}>
+          <span className={styles.deathIcon}>💀</span>
+          {event.killerChampion && event.killerChampion !== 'Unknown' && (
+            <img
+              src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${event.killerChampion}.png`}
+              alt={event.killerChampion}
+              className={styles.championIcon}
+              title={`${event.killerChampion}에게 사망`}
+            />
+          )}
+          {event.assistingParticipants?.length > 0 && (
+            <div className={styles.assists}>
+              {event.assistingParticipants.map((champion, idx) => (
+                <img
+                  key={`${event.timestamp}-${champion}-${idx}`}
+                  src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${champion}.png`}
+                  alt={champion}
+                  className={styles.assistIcon}
+                  title={`${champion} 어시스트`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      );
+
+    case 'ASSIST':
+      return (
+        <div className={`${styles.combatEvent} ${styles.assist}`}>
+          <span className={styles.assistIcon}>🤝</span>
+          <img
+            src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${event.killerChampion}.png`}
+            alt={event.killerChampion}
+            className={styles.championIcon}
+            title={`${event.killerChampion}의 킬 어시스트`}
+          />
+          <span>➔</span>
+          <img
+            src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${event.victimChampion}.png`}
+            alt={event.victimChampion}
+            className={styles.championIcon}
+            title={`${event.victimChampion} 처치`}
+          />
+        </div>
+      );
+
+    case 'MONSTER_KILL':
+      const monsterEmoji = {
+        'DRAGON': '🐲',
+        'RIFTHERALD': '👁️',
+        'BARON_NASHOR': '👾',
+        'HORDE': '🪲'
+      }[event.monsterType] || '🐉';
+
+      const monsterName = {
+        'DRAGON': '드래곤',
+        'RIFTHERALD': '전령',
+        'BARON_NASHOR': '바론',
+        'HORDE': '공허 곤충 무리'
+      }[event.monsterType] || '몬스터';
 
       return (
         <div className={`${styles.combatEvent} ${styles.monsterKill}`}>
-          <span className={styles.monsterIcon}>{icon}</span>
-          <span className={styles.monsterName}>{name} 처치</span>
+          <span className={styles.monsterIcon}>{monsterEmoji}</span>
+          <span className={styles.monsterName}>{monsterName} 처치</span>
         </div>
       );
     case 'TOWER_KILL':
@@ -114,64 +141,101 @@ const renderCombatEvent = (event, version) => {
 
 export const MatchDetailModal = ({ matchData, version, onClose }) => {
   const [timelineData, setTimelineData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const fetchController = useRef(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const fetchTimeline = async () => {
-      try {
-        const res = await fetch(`/api/match/timeline/${matchData.matchId}?puuid=${matchData.participantId}`);
-        const data = await res.json();
-        setTimelineData(data);
-      } catch (error) {
-        console.error('타임라인 데이터 로딩 오류:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTimeline();
-  }, [matchData.matchId, matchData.participantId]);
-
-  useEffect(() => {
+    setMounted(true);
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = 'unset';
     };
   }, []);
 
-  if (!matchData) return null;
+  useEffect(() => {
+    fetchTimeline();
+  }, []);
+
+  const fetchTimeline = async () => {
+    if (fetchController.current) return;
+    fetchController.current = true;
+
+    try {
+      setIsLoading(true);
+
+      const res = await fetch(
+        `/api/match/timeline/${matchData.matchId}?puuid=${matchData.participantId}`
+      );
+      
+      const data = await res.json();
+      
+      if (data.events) {
+        setTimelineData(data);
+      } else {
+        setError(data.error || '타임라인을 불러올 수 없습니다.');
+      }
+    } catch (error) {
+      console.error('Timeline fetch error:', error);
+      setError('타임라인을 불러올 수 없습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const renderTimeline = (events) => {
     if (!events || events.length === 0) return null;
 
+    const getItemIcon = (action) => {
+      switch(action) {
+        case 'purchased': return '💰';
+        case 'sold': return '💸';
+        case 'undo': return '↩️';
+        default: return '🛍️';
+      }
+    };
+
     return (
       <div className={styles.timeline}>
-        {events.map((event, index) => (
-          <div key={index} className={styles.timelineEvent}>
-            {event.type === 'ITEM' ? (
-              <>
-                <img
-                  src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/item/${event.itemId}.png`}
-                  alt={`Item ${event.itemId}`}
-                  className={styles.itemImage}
-                />
-                <span className={styles.timestamp}>
-                  {Math.floor(event.timestamp / 60000)}분
-                </span>
-              </>
-            ) : (
-              <>
-                {renderCombatEvent(event, version)}
-                <span className={styles.timestamp}>
-                  {Math.floor(event.timestamp / 60000)}분
-                </span>
-              </>
-            )}
-          </div>
-        ))}
+        {events
+          .filter(event => 
+            event.type === 'ITEM' || 
+            event.type === 'KILL' ||
+            event.type === 'DEATH' || 
+            event.type === 'ASSIST' ||
+            event.type === 'MONSTER_KILL' ||
+            event.type === 'TOWER_KILL'
+          )
+          .map((event, index) => (
+            <div key={`${event.timestamp}-${event.type}-${index}`} className={styles.timelineEvent}>
+              {event.type === 'ITEM' ? (
+                <>
+                  {getItemIcon(event.action)}
+                  <img
+                    src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/item/${event.itemId}.png`}
+                    alt={`Item ${event.itemId}`}
+                    className={styles.itemImage}
+                  />
+                  <span className={styles.timestamp}>
+                    {Math.floor(event.timestamp / 60000)}분
+                  </span>
+                </>
+              ) : (
+                <>
+                  {renderCombatEvent(event, version)}
+                  <span className={styles.timestamp}>
+                    {Math.floor(event.timestamp / 60000)}분
+                  </span>
+                </>
+              )}
+            </div>
+          ))}
       </div>
     );
   };
+
+  if (!mounted) return null;
 
   return createPortal(
     <div className={styles.modalOverlay} onClick={onClose}>
@@ -226,21 +290,16 @@ export const MatchDetailModal = ({ matchData, version, onClose }) => {
             </div>
           </div>
 
-          {loading ? (
-            <div className={styles.loading}>빌드 순서 로딩중...</div>
-          ) : timelineData?.events && (
-            <div className={styles.buildOrder}>
-              <h4>아이템 빌드 순서</h4>
-              {renderTimeline(timelineData.events)}
+          {isLoading ? (
+            <div className={styles.loading}>
+              타임라인 가져오는 중...
             </div>
+          ) : (
+            timelineData && renderTimeline(timelineData.events)
           )}
-        </div>
-
-        <div className={styles.footer}>
-          <span className={styles.time}>{formatDate(matchData.gameStartTimestamp)}</span>
         </div>
       </div>
     </div>,
     document.body
   );
-}; 
+};

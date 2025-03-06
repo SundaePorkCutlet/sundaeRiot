@@ -38,35 +38,79 @@ const getSpellKey = (spellId) => {
 const RecentMatches = ({ matches, puuid }) => {
   const [rankedMatches, setRankedMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchRankedMatches = async () => {
-      let rankedGames = [];
-      let index = 0;
+      try {
+        setLoading(true);
+        // 처음 3개의 매치만 병렬로 요청
+        const matchPromises = matches.slice(0, 3).map(async (matchId) => {
+          try {
+            const cacheKey = `match-${matchId}-${puuid}`;
+            const cachedData = getCachedData(cacheKey);
+            
+            if (cachedData) {
+              console.log('Using cached match data:', matchId);
+              return { matchId, data: cachedData };
+            }
 
-      while (rankedGames.length < 3 && index < matches.length) {
-        try {
-          const res = await fetch(
-            `/api/match/${matches[index]}?puuid=${puuid}`
-          );
-          const data = await res.json();
-          if (data.isRanked) {
-            rankedGames.push(matches[index]);
+            const res = await fetch(`/api/match/${matchId}?puuid=${puuid}`);
+            const data = await res.json();
+            
+            if (!data.error) {
+              setCachedData(cacheKey, data);
+            }
+            
+            return { matchId, data };
+          } catch (err) {
+            console.error(`Error fetching match ${matchId}:`, err);
+            return { matchId, error: err };
           }
-        } catch (err) {
-          console.error(`매치 데이터 로딩 오류 (${matches[index]}):`, err);
-        }
-        index++;
-      }
+        });
 
-      setRankedMatches(rankedGames);
-      setLoading(false);
+        const results = await Promise.all(matchPromises);
+        
+        // 성공적으로 가져온 랭크 매치만 필터링
+        const validMatches = results
+          .filter(result => result.data && !result.error && result.data.isRanked)
+          .map(result => result.matchId);
+
+        setRankedMatches(validMatches);
+      } catch (err) {
+        console.error('Error fetching matches:', err);
+        setError('매치 정보를 불러오는데 실패했습니다.');
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchRankedMatches();
   }, [matches, puuid]);
 
-  if (loading) return <div>솔로랭크 매치 검색중...</div>;
+  if (loading) {
+    return (
+      <div className="loading-message">
+        솔로랭크 매치 검색중...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="error-message">
+        {error}
+      </div>
+    );
+  }
+
+  if (rankedMatches.length === 0) {
+    return (
+      <div className="no-matches-message">
+        최근 솔로랭크 게임이 없습니다.
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", gap: "15px", marginTop: "15px" }}>
@@ -94,7 +138,7 @@ const MatchInfo = ({ matchId, puuid }) => {
   const [matchData, setMatchData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [version, setVersion] = useState('14.3.1');
+  const [version, setVersion] = useState('15.3.1');
   const [showDetail, setShowDetail] = useState(false);
   const [championKoreanNames, setChampionKoreanNames] = useState({});
 
@@ -104,7 +148,7 @@ const MatchInfo = ({ matchId, puuid }) => {
       try {
         const response = await fetch('https://ddragon.leagueoflegends.com/api/versions.json');
         const versions = await response.json();
-        setVersion(versions[0]); // 최신 버전 사용
+        setVersion("15.2.1"); // 최신 버전 사용
       } catch (error) {
         console.error('버전 정보 가져오기 실패:', error);
         // 기본 버전 유지
