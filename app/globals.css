@@ -241,3 +241,42 @@ body {
     font-size: 0.85rem !important;
   }
 }
+
+.player-row {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+  gap: 12px;
+}
+
+.rank-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #2196F3;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
+.player-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.player-info img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+/* 1-3등은 특별한 뱃지 색상 */
+.player-row:nth-child(1) .rank-badge { background: #FFD700; }
+.player-row:nth-child(2) .rank-badge { background: #C0C0C0; }
+.player-row:nth-child(3) .rank-badge { background: #CD7F32; }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import styles from './MatchDetailModal.module.css';
 import { formatDate } from '../utils/date';
 import { getCachedData, setCachedData } from '../utils/cache';
@@ -139,12 +139,61 @@ const renderCombatEvent = (event, version) => {
   }
 };
 
+const calculatePlayerScore = (player, teamInfo) => {
+  // 전투 점수 (60%)
+  const combatScore = {
+    kda: ((player.kills + player.assists) / Math.max(1, player.deaths)) * 0.35,
+    damageShare: (player.totalDamageDealtToChampions / teamInfo.teamDamage) * 0.35,
+    killParticipation: ((player.kills + player.assists) / teamInfo.teamKills) * 0.3
+  };
+
+  // 자원 관리 점수 (40%)
+  const resourceScore = {
+    csPerMin: (player.totalMinionsKilled / (teamInfo.gameDuration / 60)) * 0.4,
+    goldPerMin: (player.goldEarned / (teamInfo.gameDuration / 60)) * 0.3,
+    visionScore: (player.visionScore) * 0.3
+  };
+
+  // 최종 점수 계산
+  return (combatScore.kda + combatScore.damageShare + combatScore.killParticipation) * 0.6 +
+         (resourceScore.csPerMin + resourceScore.goldPerMin + resourceScore.visionScore) * 0.4;
+};
+
 export const MatchDetailModal = ({ matchData, version, onClose }) => {
   const [timelineData, setTimelineData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const fetchController = useRef(false);
   const [mounted, setMounted] = useState(false);
+
+  // 디버깅을 위한 로그
+  console.log('matchData:', matchData);
+
+  // allPlayers에서 점수 계산하고 정렬
+  const playerRanks = useMemo(() => {
+    if (!matchData?.allPlayers) {
+      console.log('allPlayers not found in:', matchData);
+      return [];
+    }
+    
+    return matchData.allPlayers
+      .map(player => {
+        console.log('Calculating score for player:', player);
+        return {
+          ...player,
+          score: calculatePlayerScore(player, {
+            teamDamage: matchData.teams[player.teamId === 100 ? 'blue' : 'red'].totalDamage,
+            teamKills: matchData.teams[player.teamId === 100 ? 'blue' : 'red'].totalKills,
+            gameDuration: matchData.gameDuration
+          })
+        };
+      })
+      .sort((a, b) => b.score - a.score)
+      .map((player, index) => ({
+        ...player,
+        rank: index + 1
+      }));
+  }, [matchData]);
 
   useEffect(() => {
     setMounted(true);
@@ -287,6 +336,73 @@ export const MatchDetailModal = ({ matchData, version, onClose }) => {
                   />
                 )
               ))}
+            </div>
+          </div>
+
+          {/* 플레이어 순위 섹션 */}
+          <div className={styles.playerRankings}>
+            <div className={styles.team}>
+              <h4>블루팀</h4>
+              <div className={styles.teamPlayers}>
+                {playerRanks
+                  .filter(player => player.teamId === 100)
+                  .map(player => (
+                    <div 
+                      key={player.puuid}
+                      className={`${styles.playerCard} 
+                        ${player.puuid === matchData.puuid ? styles.currentPlayer : ''} 
+                        ${player.rank === 1 ? styles.firstPlace : ''}`}
+                    >
+                      <div className={styles.rankBadge}>
+                        {player.rank === 1 ? '👑' : `#${player.rank}`}
+                      </div>
+                      <img 
+                        src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${player.championName}.png`}
+                        alt={player.championName}
+                        className={styles.championIcon}
+                      />
+                      <div className={styles.playerInfo}>
+                        <span className={styles.playerName}>{player.summonerName}</span>
+                        <span className={styles.playerScore}>{player.score.toFixed(2)} pts</span>
+                        <span className={styles.kdaText}>
+                          {player.kills}/{player.deaths}/{player.assists}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            <div className={styles.team}>
+              <h4>레드팀</h4>
+              <div className={styles.teamPlayers}>
+                {playerRanks
+                  .filter(player => player.teamId === 200)
+                  .map(player => (
+                    <div 
+                      key={player.puuid}
+                      className={`${styles.playerCard} 
+                        ${player.puuid === matchData.puuid ? styles.currentPlayer : ''} 
+                        ${player.rank === 1 ? styles.firstPlace : ''}`}
+                    >
+                      <div className={styles.rankBadge}>
+                        {player.rank === 1 ? '👑' : `#${player.rank}`}
+                      </div>
+                      <img 
+                        src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${player.championName}.png`}
+                        alt={player.championName}
+                        className={styles.championIcon}
+                      />
+                      <div className={styles.playerInfo}>
+                        <span className={styles.playerName}>{player.summonerName}</span>
+                        <span className={styles.playerScore}>{player.score.toFixed(2)} pts</span>
+                        <span className={styles.kdaText}>
+                          {player.kills}/{player.deaths}/{player.assists}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
             </div>
           </div>
 

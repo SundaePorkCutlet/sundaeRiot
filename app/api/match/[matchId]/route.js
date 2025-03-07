@@ -51,9 +51,15 @@ export async function GET(request, { params }) {
       (p) => p.puuid === puuid
     );
 
+    // 팀 전체 데미지와 킬 수 계산
+    const blueTeam = matchData.info.participants.filter(p => p.teamId === 100);
+    const redTeam = matchData.info.participants.filter(p => p.teamId === 200);
+
     const responseData = {
+      // 기존 개별 플레이어 데이터
       matchId,
-      participantId: participant.participantId,  // timeline API에서 필요
+      participantId: participant.participantId,
+      puuid: participant.puuid,
       isRanked: matchData.info.queueId === 420,
       championName: participant.championName,
       win: participant.win,
@@ -75,7 +81,46 @@ export async function GET(request, { params }) {
       item4: participant.item4,
       item5: participant.item5,
       item6: participant.item6,
-      cacheKey
+
+      // 점수 계산에 필요한 필드들
+      gameDuration: matchData.info.gameDuration,
+      goldEarned: participant.goldEarned,
+      visionScore: participant.visionScore,
+      totalMinionsKilled: participant.totalMinionsKilled,
+      teamDamageShare: participant.totalDamageDealtToChampions,
+      teamKills: participant.teamId === 100 ? 
+        blueTeam.reduce((sum, p) => sum + p.kills, 0) : 
+        redTeam.reduce((sum, p) => sum + p.kills, 0),
+      
+      // 전체 플레이어 정보 추가
+      allPlayers: matchData.info.participants.map(p => ({
+        puuid: p.puuid,
+        summonerName: p.summonerName,
+        championName: p.championName,
+        teamId: p.teamId,
+        kills: p.kills,
+        deaths: p.deaths,
+        assists: p.assists,
+        totalDamageDealtToChampions: p.totalDamageDealtToChampions,
+        goldEarned: p.goldEarned,
+        visionScore: p.visionScore,
+        totalMinionsKilled: p.totalMinionsKilled,
+        win: p.win
+      })),
+
+      // 팀 통계
+      teams: {
+        blue: {
+          totalDamage: blueTeam.reduce((sum, p) => sum + p.totalDamageDealtToChampions, 0),
+          totalKills: blueTeam.reduce((sum, p) => sum + p.kills, 0),
+          win: blueTeam[0].win
+        },
+        red: {
+          totalDamage: redTeam.reduce((sum, p) => sum + p.totalDamageDealtToChampions, 0),
+          totalKills: redTeam.reduce((sum, p) => sum + p.kills, 0),
+          win: redTeam[0].win
+        }
+      }
     };
 
     // 새로운 데이터 캐시에 저장
