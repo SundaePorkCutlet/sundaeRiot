@@ -154,9 +154,11 @@ const calculatePlayerScore = (player, teamInfo) => {
     visionScore: (player.visionScore) * 0.3
   };
 
-  // 최종 점수 계산
-  return (combatScore.kda + combatScore.damageShare + combatScore.killParticipation) * 0.6 +
+  const baseScore = (combatScore.kda + combatScore.damageShare + combatScore.killParticipation) * 0.6 +
          (resourceScore.csPerMin + resourceScore.goldPerMin + resourceScore.visionScore) * 0.4;
+
+  // 최종 점수 계산
+  return baseScore + (player.win ? 2 : 0);
 };
 
 export const MatchDetailModal = ({ matchData, version, onClose }) => {
