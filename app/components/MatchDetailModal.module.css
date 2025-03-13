@@ -374,54 +374,28 @@
 }
 
 .playerCard {
-  display: flex;
-  align-items: center;
-  padding: 10px;
   background: white;
-  border-radius: 6px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 8px 0;
   position: relative;
-  transition: all 0.3s ease;
-}
-
-.firstPlace {
-  background: linear-gradient(135deg, #ffd700 0%, #fff6a6 50%, #ffd700 100%);
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
-  border: 2px solid #ffd700;
-}
-
-.firstPlace .rankBadge {
-  background: #ffd700;
-  color: #000;
-  font-size: 14px;
-  font-weight: bold;
-  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.5);
-  border: 2px solid #fff;
-}
-
-.firstPlace .playerName {
-  color: #000;
-  font-weight: bold;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.firstPlace .playerScore {
-  color: #b8860b;
-  font-weight: bold;
-  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .currentPlayer {
-  border: 2px solid #ffd700;
+  background: #fff7e6;
+  border: 2px solid #ffb700;
+}
+
+.firstPlace {
+  background: #fff7e6;
 }
 
 .rankBadge {
   position: absolute;
-  top: -8px;
-  left: -8px;
-  background: #ffd700;
-  color: black;
+  top: 12px;
+  left: 12px;
+  background: #ffb700;
   border-radius: 50%;
   width: 24px;
   height: 24px;
@@ -429,20 +403,52 @@
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  font-size: 12px;
+  font-size: 0.9em;
+  color: white;
 }
 
 .championIcon {
   width: 40px;
   height: 40px;
-  border-radius: 20px;
-  margin-right: 10px;
+  border-radius: 50%;
+  margin-right: 12px;
 }
 
-.playerInfo {
+.totalScore {
+  font-size: 1.3em;
+  font-weight: bold;
+  color: #ffb700;
+  margin-bottom: 4px;
+  text-align: right;
+}
+
+.kdaTotal {
+  color: #666;
+  font-size: 0.9em;
+  text-align: right;
+  margin-bottom: 8px;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  font-size: 0.9em;
+  color: #666;
+}
+
+.statsGrid div {
   display: flex;
-  flex-direction: column;
-  flex: 1;
+  justify-content: space-between;
+}
+
+.statLabel {
+  color: #999;
+}
+
+.statValue {
+  color: #333;
+  font-weight: 500;
 }
 
 .playerName {
@@ -458,4 +464,40 @@
 .kdaText {
   font-size: 12px;
   color: #666;
+}
+
+.playerStats {
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.championName {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.statsDetail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 5px;
+  font-size: 0.9em;
+}
+
+.statsDetail > div {
+  padding: 2px 0;
+}
+
+.detailedScores {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  font-size: 0.8em;
+  color: #666;
+  margin-top: 4px;
+}
+
+.detailedScores span {
+  white-space: nowrap;
 } 

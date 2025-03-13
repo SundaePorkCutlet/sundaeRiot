@@ -21,22 +21,36 @@ const renderCombatEvent = (event, version) => {
       return (
         <div className={`${styles.combatEvent} ${styles.kill}`}>
           <span className={styles.killIcon}>⚔️</span>
-          <img
-            src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${event.victimChampion}.png`}
-            alt={event.victimChampion}
-            className={styles.championIcon}
-            title={`${event.victimChampion} 처치`}
-          />
+          {event.victimChampion && (
+            <img
+              src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${event.victimChampion}.png`}
+              alt={event.victimChampion}
+              className={styles.championIcon}
+              title={`${event.victimChampion} 처치`}
+              onError={(e) => {
+                console.error('Image load error:', e.target.src);
+                e.target.onerror = null;
+                e.target.src = '/fallback-champion-icon.png';
+              }}
+            />
+          )}
           {event.assistingParticipants?.length > 0 && (
             <div className={styles.assists}>
               {event.assistingParticipants.map((champion, idx) => (
-                <img
-                  key={`${event.timestamp}-${champion}-${idx}`}
-                  src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${champion}.png`}
-                  alt={champion}
-                  className={styles.assistIcon}
-                  title={`${champion} 어시스트`}
-                />
+                champion && (
+                  <img
+                    key={`${event.timestamp}-${champion}-${idx}`}
+                    src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${champion}.png`}
+                    alt={champion}
+                    className={styles.assistIcon}
+                    title={`${champion} 어시스트`}
+                    onError={(e) => {
+                      console.error('Image load error:', e.target.src);
+                      e.target.onerror = null;
+                      e.target.src = '/fallback-champion-icon.png';
+                    }}
+                  />
+                )
               ))}
             </div>
           )}
@@ -140,31 +154,48 @@ const renderCombatEvent = (event, version) => {
 };
 
 const calculatePlayerScore = (player, teamInfo) => {
-  // 서포터 여부 확인 (서폿 아이템 소지 또는 낮은 CS로 판단)
-  const supportItems = [3854, 3855, 3858, 3859]; // 시즌 15 서포터 아이템
-  const isSupport = supportItems.some(itemId => 
-    [player.item0, player.item1, player.item2, player.item3, player.item4, player.item5].includes(itemId)
-  ) || (player.totalMinionsKilled / (teamInfo.gameDuration / 60) < 3);
+  const gameMinutes = teamInfo.gameDuration / 60;
 
-  // 전투 점수 (서폿은 KDA와 킬관여율 비중 증가)
-  const combatScore = {
-    kda: ((player.kills + player.assists) / Math.max(1, player.deaths)) * (isSupport ? 0.4 : 0.35),
-    damageShare: (player.totalDamageDealtToChampions / teamInfo.teamDamage) * (isSupport ? 0.2 : 0.35),
-    killParticipation: ((player.kills + player.assists) / teamInfo.teamKills) * (isSupport ? 0.4 : 0.3)
+  const scores = {
+    kda: (player.kills + player.assists) / Math.max(1, player.deaths),
+    killParticipation: (player.kills + player.assists) / teamInfo.teamKills,
+    damageShare: player.totalDamageDealtToChampions / teamInfo.teamDamage,
+    csPerMin: player.totalMinionsKilled / gameMinutes,
+    visionPerMin: player.visionScore / gameMinutes,
+    objectiveScore: player.objectiveScore || 0
   };
 
-  // 자원 관리 점수 (서폿은 시야점수 비중 대폭 증가, CS/골드 비중 감소)
-  const resourceScore = {
-    csPerMin: (player.totalMinionsKilled / (teamInfo.gameDuration / 60)) * (isSupport ? 0.1 : 0.4),
-    goldPerMin: (player.goldEarned / (teamInfo.gameDuration / 60)) * (isSupport ? 0.2 : 0.3),
-    visionScore: (player.visionScore) * (isSupport ? 0.7 : 0.3)
+  const normalizedScores = {
+    kda: Math.min(scores.kda / 5, 1),
+    killParticipation: scores.killParticipation,
+    damageShare: scores.damageShare,
+    csPerMin: Math.min(scores.csPerMin / 10, 1),
+    visionPerMin: Math.min(scores.visionPerMin / 2, 1),
+    objectiveScore: Math.min(scores.objectiveScore / 3, 1)
   };
 
-  const baseScore = (combatScore.kda + combatScore.damageShare + combatScore.killParticipation) * 0.6 +
-         (resourceScore.csPerMin + resourceScore.goldPerMin + resourceScore.visionScore) * 0.4;
+  const weights = {
+    kda: 0.2,
+    killParticipation: 0.2,
+    damageShare: 0.2,
+    csPerMin: 0.2,
+    visionPerMin: 0.1,
+    objectiveScore: 0.1
+  };
 
-  // 최종 점수 계산
-  return baseScore + (player.win ? 2 : 0);
+  console.log(`${player.summonerName} (${player.championName}):
+    KDA: ${scores.kda.toFixed(2)} -> ${normalizedScores.kda.toFixed(2)} * ${weights.kda}
+    킬관여: ${(scores.killParticipation * 100).toFixed(0)}% -> ${normalizedScores.killParticipation.toFixed(2)} * ${weights.killParticipation}
+    데미지: ${(scores.damageShare * 100).toFixed(0)}% -> ${normalizedScores.damageShare.toFixed(2)} * ${weights.damageShare}
+    분당CS: ${scores.csPerMin.toFixed(1)} -> ${normalizedScores.csPerMin.toFixed(2)} * ${weights.csPerMin}
+    시야: ${scores.visionPerMin.toFixed(1)} -> ${normalizedScores.visionPerMin.toFixed(2)} * ${weights.visionPerMin}
+    오브젝트: ${Number(scores.objectiveScore).toFixed(1)} -> ${normalizedScores.objectiveScore.toFixed(2)} * ${weights.objectiveScore}
+  `);
+
+  const baseScore = Object.keys(normalizedScores).reduce((sum, key) => 
+    sum + normalizedScores[key] * weights[key], 0) * 10;
+
+  return baseScore + (player.win ? 1 : 0);
 };
 
 export const MatchDetailModal = ({ matchData, version, onClose }) => {
@@ -174,26 +205,73 @@ export const MatchDetailModal = ({ matchData, version, onClose }) => {
   const fetchController = useRef(false);
   const [mounted, setMounted] = useState(false);
 
-  // 디버깅을 위한 로그
-  console.log('matchData:', matchData);
+  const playerObjectiveScores = useMemo(() => {
+    if (!timelineData?.events) return {};
+    
+    const scores = {};
+    matchData.allPlayers.forEach((_, index) => {
+      scores[index + 1] = 0;
+    });
+    
+    timelineData.events.forEach(event => {
+      if (event.type === 'ELITE_MONSTER_KILL') {
+        const killerId = Number(event.killerId);
+        if (killerId && scores[killerId] !== undefined) {
+          switch(event.monsterType) {
+            case 'DRAGON': 
+              scores[killerId] += 0.5;
+              break;
+            case 'BARON_NASHOR': 
+              scores[killerId] += 1;
+              break;
+            case 'RIFTHERALD':
+            case 'HORDE': 
+              scores[killerId] += 0.12;
+              break;
+          }
+        }
+      } else if (event.type === 'BUILDING_KILL' && event.buildingType === 'TOWER_BUILDING') {
+        const killerId = Number(event.killerId);
+        if (killerId && scores[killerId] !== undefined) {
+          scores[killerId] += 0.3;
+        }
+      }
+    });
+    
+    return scores;
+  }, [timelineData, matchData]);
 
-  // allPlayers에서 점수 계산하고 정렬
   const playerRanks = useMemo(() => {
-    if (!matchData?.allPlayers) {
-      console.log('allPlayers not found in:', matchData);
-      return [];
-    }
+    if (!matchData?.allPlayers) return [];
     
     return matchData.allPlayers
-      .map(player => {
-        console.log('Calculating score for player:', player);
-        return {
-          ...player,
-          score: calculatePlayerScore(player, {
+      .map((player, index) => {
+        const participantId = index + 1;
+        const objectiveScore = playerObjectiveScores[participantId] || 0;
+        
+        console.log('하단 랭킹 점수 계산:', {
+          player,
+          objectiveScore,
+          teamDamage: matchData.teams[player.teamId === 100 ? 'blue' : 'red'].totalDamage,
+          teamKills: matchData.teams[player.teamId === 100 ? 'blue' : 'red'].totalKills,
+        });
+
+        const score = calculatePlayerScore(
+          {
+            ...player,
+            objectiveScore
+          },
+          {
             teamDamage: matchData.teams[player.teamId === 100 ? 'blue' : 'red'].totalDamage,
             teamKills: matchData.teams[player.teamId === 100 ? 'blue' : 'red'].totalKills,
             gameDuration: matchData.gameDuration
-          })
+          }
+        );
+
+        return {
+          ...player,
+          objectiveScore,
+          score
         };
       })
       .sort((a, b) => b.score - a.score)
@@ -201,7 +279,7 @@ export const MatchDetailModal = ({ matchData, version, onClose }) => {
         ...player,
         rank: index + 1
       }));
-  }, [matchData]);
+  }, [matchData, timelineData, playerObjectiveScores]);
 
   useEffect(() => {
     setMounted(true);
@@ -215,23 +293,42 @@ export const MatchDetailModal = ({ matchData, version, onClose }) => {
     fetchTimeline();
   }, []);
 
+  useEffect(() => {
+    if (matchData?.allPlayers) {
+      matchData.allPlayers.forEach(player => {
+        console.log(`${player.summonerName} (${player.championName})의 CS 정보:`, {
+          totalMinionsKilled: player.totalMinionsKilled,
+          neutralMinionsKilled: player.neutralMinionsKilled,
+          minionsKilled: player.minionsKilled,
+          jungleMinionsKilled: player.jungleMinionsKilled,
+          totalCs: player.totalCs,
+          cs: player.cs
+        });
+      });
+    }
+  }, [matchData]);
+
   const fetchTimeline = async () => {
     if (fetchController.current) return;
     fetchController.current = true;
 
     try {
       setIsLoading(true);
+      console.log('Fetching timeline for match:', matchData.matchId);
 
       const res = await fetch(
-        `/api/match/timeline/${matchData.matchId}?puuid=${matchData.participantId}`
+        `/api/match/timeline/${matchData.matchId}`
       );
       
       const data = await res.json();
+      console.log('Timeline full data:', data);
       
       if (data.events) {
+        console.log('Processed events:', data.events);
         setTimelineData(data);
       } else {
-        setError(data.error || '타임라인을 불러올 수 없습니다.');
+        console.error('Timeline data missing events:', data);
+        setError('타임라인을 불러올 수 없습니다.');
       }
     } catch (error) {
       console.error('Timeline fetch error:', error);
@@ -241,8 +338,104 @@ export const MatchDetailModal = ({ matchData, version, onClose }) => {
     }
   };
 
+  const processTimelineEvents = (events, participantId) => {
+    if (!events) return [];
+    
+    const getPlayerByParticipantId = (id) => {
+      return matchData.allPlayers[Number(id) - 1];
+    };
+
+    return events.flatMap(event => {
+      switch (event.type) {
+        case 'ITEM_PURCHASED':
+        case 'ITEM_SOLD':
+        case 'ITEM_UNDO':
+          if (event.participantId === participantId) {
+            return {
+              ...event,
+              type: 'ITEM',
+              action: event.type.toLowerCase().split('_')[1]
+            };
+          }
+          break;
+
+        case 'CHAMPION_KILL':
+          const currentKillerId = Number(event.killerId);
+          const currentVictimId = Number(event.victimId);
+          const currentParticipantId = Number(participantId);
+
+          if (currentKillerId === currentParticipantId) {
+            const victim = getPlayerByParticipantId(event.victimId);
+            console.log('Found victim:', victim);
+
+            return {
+              type: 'KILL',
+              timestamp: event.timestamp,
+              victimChampion: victim?.championName,
+              assistingParticipants: event.assistingParticipantIds
+                ? event.assistingParticipantIds.map(id => {
+                    const assisting = getPlayerByParticipantId(id);
+                    console.log(`Kill - Found assisting player:`, assisting);
+                    return assisting?.championName;
+                  }).filter(Boolean)
+                : []
+            };
+          } else if (currentVictimId === currentParticipantId) {
+            const killer = getPlayerByParticipantId(event.killerId);
+            console.log('Death - Found killer:', killer);
+
+            return {
+              type: 'DEATH',
+              timestamp: event.timestamp,
+              killerChampion: killer?.championName,
+              assistingParticipants: event.assistingParticipantIds
+                ? event.assistingParticipantIds.map(id => {
+                    const assisting = getPlayerByParticipantId(id);
+                    return assisting?.championName;
+                  }).filter(Boolean)
+                : []
+            };
+          } else if (event.assistingParticipantIds?.includes(currentParticipantId)) {
+            const killer = getPlayerByParticipantId(event.killerId);
+            const victim = getPlayerByParticipantId(event.victimId);
+
+            return {
+              type: 'ASSIST',
+              timestamp: event.timestamp,
+              killerChampion: killer?.championName,
+              victimChampion: victim?.championName
+            };
+          }
+          break;
+
+        case 'ELITE_MONSTER_KILL':
+          return {
+            type: 'MONSTER_KILL',
+            timestamp: event.timestamp,
+            monsterType: event.monsterType,
+            teamId: event.teamId
+          };
+
+        case 'BUILDING_KILL':
+          if (event.buildingType === 'TOWER_BUILDING') {
+            return {
+              type: 'TOWER_KILL',
+              timestamp: event.timestamp,
+              towerType: event.towerType,
+              laneType: event.laneType,
+              teamId: event.teamId
+            };
+          }
+          break;
+      }
+      return [];
+    }).filter(Boolean);
+  };
+
   const renderTimeline = (events) => {
     if (!events || events.length === 0) return null;
+
+    const processedEvents = processTimelineEvents(events, matchData.participantId);
 
     const getItemIcon = (action) => {
       switch(action) {
@@ -255,7 +448,7 @@ export const MatchDetailModal = ({ matchData, version, onClose }) => {
 
     return (
       <div className={styles.timeline}>
-        {events
+        {processedEvents
           .filter(event => 
             event.type === 'ITEM' || 
             event.type === 'KILL' ||
@@ -320,6 +513,25 @@ export const MatchDetailModal = ({ matchData, version, onClose }) => {
               <div className={styles.damage}>
                 딜량: {matchData.totalDamageDealtToChampions.toLocaleString()}
               </div>
+              <div className={styles.playerScore}>
+                {(() => {
+                  const player = matchData.allPlayers.find(p => p.puuid === matchData.puuid);
+                  const objectiveScore = playerObjectiveScores[matchData.participantId] || 0;
+                  const team = player.teamId === 100 ? 'blue' : 'red';
+                  
+                  return calculatePlayerScore(
+                    {
+                      ...player,
+                      objectiveScore
+                    },
+                    {
+                      teamDamage: matchData.teams[team].totalDamage,
+                      teamKills: matchData.teams[team].totalKills,
+                      gameDuration: matchData.gameDuration
+                    }
+                  ).toFixed(2);
+                })()}
+              </div>
             </div>
           </div>
 
@@ -347,7 +559,6 @@ export const MatchDetailModal = ({ matchData, version, onClose }) => {
             </div>
           </div>
 
-          {/* 플레이어 순위 섹션 */}
           <div className={styles.playerRankings}>
             <div className={styles.team}>
               <h4>블루팀</h4>
@@ -364,17 +575,44 @@ export const MatchDetailModal = ({ matchData, version, onClose }) => {
                       <div className={styles.rankBadge}>
                         {player.rank === 1 ? '👑' : `#${player.rank}`}
                       </div>
-                      <img 
-                        src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${player.championName}.png`}
-                        alt={player.championName}
-                        className={styles.championIcon}
-                      />
-                      <div className={styles.playerInfo}>
-                        <span className={styles.playerName}>{player.summonerName}</span>
-                        <span className={styles.playerScore}>{player.score.toFixed(2)} pts</span>
-                        <span className={styles.kdaText}>
-                          {player.kills}/{player.deaths}/{player.assists}
-                        </span>
+                      <div className={styles.totalScore}>{player.score.toFixed(2)} pts</div>
+                      <div className={styles.kdaTotal}>
+                        {player.kills}/{player.deaths}/{player.assists}
+                      </div>
+                      <div className={styles.mainContent}>
+                        <img 
+                          src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${player.championName}.png`}
+                          alt={player.championName}
+                          className={styles.championIcon}
+                        />
+                        <div className={styles.statsGrid}>
+                          <div>
+                            <span className={styles.statLabel}>KDA</span>
+                            <span className={styles.statValue}>{((player.kills + player.assists) / Math.max(1, player.deaths)).toFixed(2)}</span>
+                          </div>
+                          <div>
+                            <span className={styles.statLabel}>킬관여</span>
+                            <span className={styles.statValue}>{((player.kills + player.assists) / matchData.teams[player.teamId === 100 ? 'blue' : 'red'].totalKills * 100).toFixed(0)}%</span>
+                          </div>
+                          <div>
+                            <span className={styles.statLabel}>데미지</span>
+                            <span className={styles.statValue}>{(player.totalDamageDealtToChampions / matchData.teams[player.teamId === 100 ? 'blue' : 'red'].totalDamage * 100).toFixed(0)}%</span>
+                          </div>
+                          <div>
+                            <span className={styles.statLabel}>분당CS</span>
+                            <span className={styles.statValue}>
+                              {(player.totalMinionsKilled / (matchData.gameDuration / 60)).toFixed(1)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className={styles.statLabel}>시야</span>
+                            <span className={styles.statValue}>{(player.visionScore / (matchData.gameDuration / 60)).toFixed(1)}</span>
+                          </div>
+                          <div>
+                            <span className={styles.statLabel}>오브젝트</span>
+                            <span className={styles.statValue}>{player.objectiveScore.toFixed(1)}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -396,17 +634,44 @@ export const MatchDetailModal = ({ matchData, version, onClose }) => {
                       <div className={styles.rankBadge}>
                         {player.rank === 1 ? '👑' : `#${player.rank}`}
                       </div>
-                      <img 
-                        src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${player.championName}.png`}
-                        alt={player.championName}
-                        className={styles.championIcon}
-                      />
-                      <div className={styles.playerInfo}>
-                        <span className={styles.playerName}>{player.summonerName}</span>
-                        <span className={styles.playerScore}>{player.score.toFixed(2)} pts</span>
-                        <span className={styles.kdaText}>
-                          {player.kills}/{player.deaths}/{player.assists}
-                        </span>
+                      <div className={styles.totalScore}>{player.score.toFixed(2)} pts</div>
+                      <div className={styles.kdaTotal}>
+                        {player.kills}/{player.deaths}/{player.assists}
+                      </div>
+                      <div className={styles.mainContent}>
+                        <img 
+                          src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${player.championName}.png`}
+                          alt={player.championName}
+                          className={styles.championIcon}
+                        />
+                        <div className={styles.statsGrid}>
+                          <div>
+                            <span className={styles.statLabel}>KDA</span>
+                            <span className={styles.statValue}>{((player.kills + player.assists) / Math.max(1, player.deaths)).toFixed(2)}</span>
+                          </div>
+                          <div>
+                            <span className={styles.statLabel}>킬관여</span>
+                            <span className={styles.statValue}>{((player.kills + player.assists) / matchData.teams[player.teamId === 100 ? 'blue' : 'red'].totalKills * 100).toFixed(0)}%</span>
+                          </div>
+                          <div>
+                            <span className={styles.statLabel}>데미지</span>
+                            <span className={styles.statValue}>{(player.totalDamageDealtToChampions / matchData.teams[player.teamId === 100 ? 'blue' : 'red'].totalDamage * 100).toFixed(0)}%</span>
+                          </div>
+                          <div>
+                            <span className={styles.statLabel}>분당CS</span>
+                            <span className={styles.statValue}>
+                              {(player.totalMinionsKilled / (matchData.gameDuration / 60)).toFixed(1)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className={styles.statLabel}>시야</span>
+                            <span className={styles.statValue}>{(player.visionScore / (matchData.gameDuration / 60)).toFixed(1)}</span>
+                          </div>
+                          <div>
+                            <span className={styles.statLabel}>오브젝트</span>
+                            <span className={styles.statValue}>{player.objectiveScore.toFixed(1)}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}

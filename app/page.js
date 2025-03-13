@@ -154,7 +154,7 @@ const MatchInfo = ({ matchId, puuid }) => {
       try {
         const response = await fetch('https://ddragon.leagueoflegends.com/api/versions.json');
         const versions = await response.json();
-        setVersion("15.2.1"); // 최신 버전 사용
+        setVersion(versions[0]); // 최신 버전 사용
       } catch (error) {
         console.error('버전 정보 가져오기 실패:', error);
         // 기본 버전 유지
