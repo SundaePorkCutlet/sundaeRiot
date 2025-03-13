@@ -141,8 +141,10 @@ const renderCombatEvent = (event, version) => {
 
 const calculatePlayerScore = (player, teamInfo) => {
   // 서포터 여부 확인 (서폿 아이템 소지 또는 낮은 CS로 판단)
-  const isSupport = [3860, 3864, 3858, 3850, 3862].includes(player.item0) || 
-                   (player.totalMinionsKilled / (teamInfo.gameDuration / 60) < 3);
+  const supportItems = [3854, 3855, 3858, 3859]; // 시즌 15 서포터 아이템
+  const isSupport = supportItems.some(itemId => 
+    [player.item0, player.item1, player.item2, player.item3, player.item4, player.item5].includes(itemId)
+  ) || (player.totalMinionsKilled / (teamInfo.gameDuration / 60) < 3);
 
   // 전투 점수 (서폿은 KDA와 킬관여율 비중 증가)
   const combatScore = {
