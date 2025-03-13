@@ -140,18 +140,22 @@ const renderCombatEvent = (event, version) => {
 };
 
 const calculatePlayerScore = (player, teamInfo) => {
-  // 전투 점수 (60%)
+  // 서포터 여부 확인 (서폿 아이템 소지 또는 낮은 CS로 판단)
+  const isSupport = [3860, 3864, 3858, 3850, 3862].includes(player.item0) || 
+                   (player.totalMinionsKilled / (teamInfo.gameDuration / 60) < 3);
+
+  // 전투 점수 (서폿은 KDA와 킬관여율 비중 증가)
   const combatScore = {
-    kda: ((player.kills + player.assists) / Math.max(1, player.deaths)) * 0.35,
-    damageShare: (player.totalDamageDealtToChampions / teamInfo.teamDamage) * 0.35,
-    killParticipation: ((player.kills + player.assists) / teamInfo.teamKills) * 0.3
+    kda: ((player.kills + player.assists) / Math.max(1, player.deaths)) * (isSupport ? 0.4 : 0.35),
+    damageShare: (player.totalDamageDealtToChampions / teamInfo.teamDamage) * (isSupport ? 0.2 : 0.35),
+    killParticipation: ((player.kills + player.assists) / teamInfo.teamKills) * (isSupport ? 0.4 : 0.3)
   };
 
-  // 자원 관리 점수 (40%)
+  // 자원 관리 점수 (서폿은 시야점수 비중 대폭 증가, CS/골드 비중 감소)
   const resourceScore = {
-    csPerMin: (player.totalMinionsKilled / (teamInfo.gameDuration / 60)) * 0.4,
-    goldPerMin: (player.goldEarned / (teamInfo.gameDuration / 60)) * 0.3,
-    visionScore: (player.visionScore) * 0.3
+    csPerMin: (player.totalMinionsKilled / (teamInfo.gameDuration / 60)) * (isSupport ? 0.1 : 0.4),
+    goldPerMin: (player.goldEarned / (teamInfo.gameDuration / 60)) * (isSupport ? 0.2 : 0.3),
+    visionScore: (player.visionScore) * (isSupport ? 0.7 : 0.3)
   };
 
   const baseScore = (combatScore.kda + combatScore.damageShare + combatScore.killParticipation) * 0.6 +
